@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>独立時計師養成システム — Cal.02 Automatic</title>
+  <meta name="description" content="機械式時計(自動巻 Cal.02)を一から組み立てる、スイス時計学校レベルの組立シミュレーター">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============ 3Dビューポート ============ -->
+  <canvas id="scene-canvas"></canvas>
+
+  <!-- ============ トップバー ============ -->
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-name">ATELIER HORLOGER</div>
+      <div class="brand-sub">独立時計師養成システム — Cal.02 Automatic</div>
+    </div>
+
+    <div class="topbar-spacer"></div>
+
+    <div class="mode-toggle" role="tablist" aria-label="モード切替">
+      <button id="btn-learning" class="active" type="button">Learning Mode</button>
+      <button id="btn-exam" type="button">Exam Mode</button>
+    </div>
+
+    <!-- プライマリCTA(章送り・動作確認など) -->
+    <button id="cta-btn" type="button" hidden>ゼンマイを巻いて動作確認</button>
+
+    <button id="reset-btn" type="button" title="進捗をリセット">RESET</button>
+  </header>
+
+  <div id="mode-badge">Learning Mode</div>
+
+  <!-- ============ 左パネル: 章 + サポート表示 ============ -->
+  <aside id="panel-left" class="glass">
+    <div id="learning-info">
+      <div class="chapter-block">
+        <div class="chapter-title" id="chapter-title">第1章  ムーブメント組立</div>
+        <div class="chapter-sub" id="chapter-sub">Movement Assembly</div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="chapter-note" id="chapter-note"></div>
+      </div>
+
+      <div class="step-counter" id="step-counter"></div>
+
+      <div class="part-name-ja" id="part-name-ja">—</div>
+      <div class="part-name-en" id="part-name-en">—</div>
+
+      <div class="info-block role" id="block-role">
+        <h4>役割</h4><p id="info-role">—</p>
+      </div>
+      <div class="info-block" id="block-relation">
+        <h4>他部品との関係</h4><p id="info-relation">—</p>
+      </div>
+      <div class="info-block" id="block-desc">
+        <h4>解説</h4><p id="info-desc">—</p>
+      </div>
+      <div class="info-divider"></div>
+      <div class="info-block" id="block-trivia">
+        <h4>豆知識</h4><p id="info-trivia">—</p>
+      </div>
+    </div>
+
+    <div id="exam-info" hidden>
+      <div class="chapter-block">
+        <div class="chapter-title">Examination</div>
+        <div class="chapter-sub">試験モード</div>
+        <div class="progress-track"><div class="progress-fill"></div></div>
+      </div>
+      <p class="exam-note">
+        <strong>EXAM MODE</strong><br>
+        工程・解説・発光ガイドは表示されません。<br>
+        正しい部品・順序・位置を、<br>知識だけで組み立ててください。
+      </p>
+    </div>
+  </aside>
+
+  <!-- ============ 右パネル: 工具 ============ -->
+  <aside id="panel-right" class="glass">
+    <h3>Tools</h3>
+    <div class="tool" id="tool-driver">
+      <div class="tool-icon icon-driver"></div>
+      <div class="tool-name">ドライバー<span class="tool-en">Screwdriver</span></div>
+    </div>
+    <div class="tool" id="tool-tweezers">
+      <div class="tool-icon icon-tweezers"></div>
+      <div class="tool-name">ピンセット<span class="tool-en">Tweezers</span></div>
+    </div>
+    <div class="tool" id="tool-oiler">
+      <div class="tool-icon icon-oiler"></div>
+      <div class="tool-name">オイラー<span class="tool-en">Oiler</span></div>
+    </div>
+    <div id="tool-guide">工具を選択し、作業対象をクリックしてください。</div>
+  </aside>
+
+  <!-- ============ 下部: 部品トレイ ============ -->
+  <footer id="tray">
+    <div id="tray-label">Components — ドラッグして配置</div>
+    <div id="tray-scroll"></div>
+  </footer>
+
+  <div id="drag-ghost"><img alt=""></div>
+
+  <!-- ============ 中央メッセージ ============ -->
+  <div id="message-layer"></div>
+
+  <!-- ============ シネマティック演出レイヤー ============ -->
+  <div id="cinema-caption"></div>
+  <div id="calib-caption"></div>
+  <div id="light-streak"></div>
+  <div id="final-caption">
+    <div class="fc-rule"></div>
+    <div class="fc-brand">ATELIER HORLOGER</div>
+    <div class="fc-caliber">Cal.02 Automatic</div>
+    <div class="fc-sub">Mechanical Movement · Self-Winding</div>
+    <div id="final-actions">
+      <button type="button" data-act="view">時計を鑑賞する</button>
+      <button type="button" data-act="movement">ムーブメントを見る</button>
+      <button type="button" data-act="menu">メインに戻る</button>
+      <button type="button" data-act="restart">最初から組み立てる</button>
+    </div>
+  </div>
+
+  <!-- ============ ローディング ============ -->
+  <div id="loading">
+    <div class="loading-mark">ATELIER HORLOGER</div>
+    <div class="loading-bar"></div>
+    <div class="loading-note">Preparing Cal.02</div>
+  </div>
+
+  <div id="fatal-error"><p></p></div>
+
+  <!-- ============ スクリプト ============ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/parts.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/assembly.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

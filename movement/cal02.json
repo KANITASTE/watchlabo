@@ -1,0 +1,1184 @@
+{
+  "id": "cal02",
+  "name": "自動巻ムーブメント",
+  "caliber": "Cal.02 Automatic",
+  "beatHz": 3,
+  "chapters": [
+    {
+      "id": "movement",
+      "index": 1,
+      "title": "第1章  ムーブメント組立",
+      "subtitle": "Movement Assembly — 機械側",
+      "note": "地板に輪列・脱進機・調速機・巻上機構・自動巻機構を組み付け、心臓部を完成させます。"
+    },
+    {
+      "id": "dial",
+      "index": 2,
+      "title": "第2章  文字盤側組立",
+      "subtitle": "Dial-Side Assembly",
+      "note": "ムーブメントを反転し、モーションワーク・文字盤・三針を取り付けて時刻を表示させます。"
+    },
+    {
+      "id": "case",
+      "index": 3,
+      "title": "第3章  ケーシング",
+      "subtitle": "Casing — 外装組立",
+      "note": "ムーブメントをケースに収め、風防・ベゼル・裏蓋・竜頭を組み、時計ヘッドとして完成させます。"
+    }
+  ],
+  "parts": [
+    {
+      "id": "mainplate",
+      "chapter": "movement",
+      "order": 1,
+      "name": "地板",
+      "nameEn": "Main Plate",
+      "type": "plate",
+      "tool": "tweezers",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 16,
+      "role": "すべての部品を支える土台となるプレート",
+      "description": "ムーブメントの基礎となる板。輪列・受け・脱進機・調速機のすべてがこの上に組み付けられます。真鍮にロジウムめっきを施し、ペルラージュ(円形の磨き模様)で仕上げます。",
+      "relation": "以降のすべての部品の基準面。穴石(ルビー)が各歯車の下軸受となります。",
+      "trivia": "フランス語では「プラチーヌ(platine)」。時計の品質は地板の平面度と仕上げに表れると言われます。",
+      "wrongReason": "地板は最初に据える基準部品です。これが無ければ他のどの部品も軸を支える相手がありません。",
+      "params": {
+        "radius": 24,
+        "thickness": 3
+      }
+    },
+    {
+      "id": "barrel",
+      "chapter": "movement",
+      "order": 2,
+      "name": "香箱車",
+      "nameEn": "Barrel",
+      "type": "barrel",
+      "tool": "tweezers",
+      "position": [
+        -13,
+        0.4,
+        8.5
+      ],
+      "rotationY": 0,
+      "hitRadius": 10,
+      "role": "主ゼンマイを収め、動力を生み出す動力源",
+      "description": "内部に主ゼンマイを巻き込んだ円筒。ゼンマイがほどける力で外周の歯が回り、輪列全体を駆動します。動力の源であるため最初に据えます。",
+      "relation": "外周の歯が二番車と噛み合い、動力を伝えます。中心の香箱真は角穴車で巻き上げられます。",
+      "trivia": "香を入れる小箱に形が似ることからこの名に。ゼンマイの力を蓄える最重要部品です。",
+      "wrongReason": "香箱は二番車と噛み合う位置(10時方向)に座ぐりされています。中心に置くと輪列と噛み合いません。",
+      "run": {
+        "type": "spin",
+        "speed": -0.014,
+        "delay": 0.2
+      },
+      "params": {
+        "radius": 9.5,
+        "teeth": 84
+      }
+    },
+    {
+      "id": "centerWheel",
+      "chapter": "movement",
+      "order": 3,
+      "name": "二番車",
+      "nameEn": "Center Wheel",
+      "type": "wheel",
+      "tool": "tweezers",
+      "position": [
+        0,
+        1,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 8,
+      "role": "1時間に1回転し、分の伝達の起点となる歯車",
+      "description": "中心に位置し香箱から最初に動力を受ける歯車。1時間に1回転するため、その延長軸に文字盤側の筒カナ(分針)が取り付けられます。",
+      "relation": "香箱に駆動され、三番車へ動力を渡します。軸は地板を貫通し文字盤側のモーションワークへ繋がります。",
+      "trivia": "中心にあるため「センターホイール」。伝統設計では常に機械の中心に置かれます。",
+      "wrongReason": "二番車は文字盤中心の分針軸を担うため、必ず地板中心に入ります。他の位置では針の中心が出ません。",
+      "run": {
+        "type": "spin",
+        "speed": 0.03,
+        "delay": 0.8
+      },
+      "params": {
+        "radius": 7,
+        "teeth": 64,
+        "spokes": 4,
+        "color": "gilt",
+        "pivotH": 3.4
+      }
+    },
+    {
+      "id": "thirdWheel",
+      "chapter": "movement",
+      "order": 4,
+      "name": "三番車",
+      "nameEn": "Third Wheel",
+      "type": "wheel",
+      "tool": "tweezers",
+      "position": [
+        7.5,
+        1.7,
+        9
+      ],
+      "rotationY": 0,
+      "hitRadius": 6,
+      "role": "二番車と四番車をつなぐ中間車",
+      "description": "二番車の回転を増速して四番車へ伝える中間歯車。輪列のギア比を成立させます。",
+      "relation": "二番車に駆動され、四番車を回します。",
+      "trivia": "歯数の組み合わせで「1時間=60分=60秒」の換算が機械的に実現されます。",
+      "wrongReason": "三番車は二番車と四番車の中間位置に噛み合います。離れた場所では両者と接触できません。",
+      "run": {
+        "type": "spin",
+        "speed": -0.07,
+        "delay": 1.3
+      },
+      "params": {
+        "radius": 5.5,
+        "teeth": 60,
+        "spokes": 4,
+        "color": "gilt",
+        "pivotH": 3.2
+      }
+    },
+    {
+      "id": "fourthWheel",
+      "chapter": "movement",
+      "order": 5,
+      "name": "四番車",
+      "nameEn": "Fourth Wheel",
+      "type": "wheel",
+      "tool": "tweezers",
+      "position": [
+        13,
+        1.1,
+        0.8
+      ],
+      "rotationY": 0,
+      "hitRadius": 5.5,
+      "role": "1分間に1回転し、秒針を駆動する歯車",
+      "description": "1分でちょうど1回転する歯車。その軸は文字盤側に貫通し、スモールセコンド(秒針)を駆動します。",
+      "relation": "三番車に駆動され、ガンギ車を回します。軸先は文字盤側の秒針へ繋がります。",
+      "trivia": "スモールセコンドの小秒針は、この四番車の真上に位置します。",
+      "wrongReason": "四番車はガンギ車と噛み合う位置に入ります。ずれると脱進機へ動力が伝わりません。",
+      "run": {
+        "type": "spin",
+        "speed": 0.11,
+        "delay": 1.8
+      },
+      "params": {
+        "radius": 5,
+        "teeth": 60,
+        "spokes": 4,
+        "color": "gilt",
+        "pivotH": 6
+      }
+    },
+    {
+      "id": "escapeWheel",
+      "chapter": "movement",
+      "order": 6,
+      "name": "ガンギ車",
+      "nameEn": "Escape Wheel",
+      "type": "escapeWheel",
+      "tool": "tweezers",
+      "position": [
+        9,
+        2.1,
+        -6.8
+      ],
+      "rotationY": 0,
+      "hitRadius": 4.5,
+      "role": "輪列の回転を一定リズムで解放する脱進機の歯車",
+      "description": "特殊な形状の歯を持ち、アンクルと噛み合って回転を一歯ずつ規則正しく解放します。歯先には微量の注油が必要です。",
+      "relation": "四番車に駆動され、アンクルの爪石に噛み合います。脱進機の入口です。",
+      "trivia": "「チクタク」の音は、ガンギ車の歯がアンクルの爪石を打つ音です。",
+      "wrongReason": "ガンギ車は四番車とアンクルの双方に噛む微妙な位置にあります。ここを外すと脱進機が成立しません。",
+      "run": {
+        "type": "escape",
+        "delay": 2.2
+      },
+      "params": {
+        "radius": 3.8,
+        "teeth": 15,
+        "color": "steel",
+        "pivotH": 2.8
+      },
+      "oil": true
+    },
+    {
+      "id": "trainBridge",
+      "chapter": "movement",
+      "order": 7,
+      "name": "輪列受け",
+      "nameEn": "Train Wheel Bridge",
+      "type": "bridge",
+      "tool": "driver",
+      "position": [
+        8,
+        3.4,
+        1
+      ],
+      "rotationY": 0,
+      "hitRadius": 9,
+      "role": "三番車・四番車・ガンギ車の上軸を支える受け板",
+      "description": "輪列上側の軸受(ルビーの穴石)を持つブリッジ。歯車を上下で挟んで正しく保持します。コート・ド・ジュネーブと面取りで仕上げます。",
+      "relation": "三番車・四番車・ガンギ車の上ホゾを受けます。これを締めて初めて輪列が安定します。",
+      "trivia": "縁の面取り(アングラージュ)の美しさは高級時計の証とされます。",
+      "wrongReason": "輪列受けは三番・四番・ガンギの3軸を同時に受ける位置に合わせます。ずれると軸が穴石に入りません。",
+      "params": {
+        "thickness": 1.6,
+        "arms": [
+          [
+            -0.5,
+            8,
+            1,
+            -7.8,
+            4.4
+          ],
+          [
+            -0.5,
+            8,
+            5,
+            -0.2,
+            3.8
+          ],
+          [
+            5,
+            -0.2,
+            1,
+            -7.8,
+            3.8
+          ]
+        ],
+        "jewels": [
+          [
+            -0.5,
+            8
+          ],
+          [
+            5,
+            -0.2
+          ],
+          [
+            1,
+            -7.8
+          ]
+        ],
+        "screws": [
+          [
+            -2.8,
+            10.5
+          ],
+          [
+            3.5,
+            -10
+          ]
+        ],
+        "finish": "geneva"
+      }
+    },
+    {
+      "id": "barrelBridge",
+      "chapter": "movement",
+      "order": 8,
+      "name": "香箱受け",
+      "nameEn": "Barrel Bridge",
+      "type": "bridge",
+      "tool": "driver",
+      "position": [
+        -6,
+        3.8,
+        4
+      ],
+      "rotationY": 0,
+      "hitRadius": 10,
+      "role": "香箱と二番車の上軸を支える大型の受け板",
+      "description": "香箱真と二番車の上軸受を保持する最大の受け。巻上機構の丸穴車・角穴車もこの上に載ります。",
+      "relation": "香箱と二番車を上から保持。巻上系(丸穴車・角穴車・コハゼ)の基盤となります。",
+      "trivia": "多くのムーブメントでは香箱受けにメーカー名や石数が刻印されます。",
+      "wrongReason": "香箱受けは香箱と二番車の2軸を受ける位置に合わせます。位置が違うと香箱が回転できません。",
+      "params": {
+        "thickness": 1.7,
+        "arms": [
+          [
+            -7,
+            4.5,
+            6,
+            -4,
+            6.6
+          ],
+          [
+            -7,
+            4.5,
+            5,
+            1,
+            5.2
+          ]
+        ],
+        "jewels": [
+          [
+            -7,
+            4.5
+          ],
+          [
+            6,
+            -4
+          ]
+        ],
+        "screws": [
+          [
+            -11,
+            8.5
+          ],
+          [
+            9,
+            -6
+          ],
+          [
+            8.5,
+            3
+          ]
+        ],
+        "finish": "geneva"
+      }
+    },
+    {
+      "id": "pallet",
+      "chapter": "movement",
+      "order": 9,
+      "name": "アンクル",
+      "nameEn": "Pallet Fork",
+      "type": "pallet",
+      "tool": "tweezers",
+      "position": [
+        3.5,
+        2.3,
+        -10
+      ],
+      "rotationY": 2.82,
+      "hitRadius": 4.5,
+      "role": "ガンギ車を止め、テンプへ動力を渡す脱進機の心臓部",
+      "description": "錨形のレバー。2つのルビー爪石でガンギ車を交互に止め、同時にテンプへ振動を維持するエネルギーを送ります。",
+      "relation": "ガンギ車とテンプの間に立ち、両者を仲介します。爪石には注油が必要です。",
+      "trivia": "アンクルはフランス語の ancre(錨)から。爪石には合成ルビーが使われます。",
+      "wrongReason": "アンクルはガンギ車とテンプの中心線上に置きます。角度・位置がずれると脱進が噛み合いません。",
+      "run": {
+        "type": "pallet",
+        "delay": 2.5
+      },
+      "params": {
+        "length": 5
+      },
+      "oil": true
+    },
+    {
+      "id": "palletBridge",
+      "chapter": "movement",
+      "order": 10,
+      "name": "アンクル受け",
+      "nameEn": "Pallet Bridge",
+      "type": "bridge",
+      "tool": "driver",
+      "position": [
+        3.5,
+        3.9,
+        -10
+      ],
+      "rotationY": 0,
+      "hitRadius": 4.5,
+      "role": "アンクルの上軸を支える小さな受け板",
+      "description": "アンクル真の上軸受を保持する小型ブリッジ。小さいながら脱進機の精度を左右します。",
+      "relation": "アンクルの上ホゾを受け、脱進機を固定します。",
+      "trivia": "取り付けには部品中最小クラスのネジが使われます。",
+      "wrongReason": "アンクル受けはアンクル真の真上に置きます。ずれるとアンクルが首を振れません。",
+      "params": {
+        "thickness": 1.2,
+        "arms": [
+          [
+            2.4,
+            0.8,
+            -2.4,
+            -0.8,
+            2.6
+          ]
+        ],
+        "jewels": [
+          [
+            0,
+            0
+          ]
+        ],
+        "screws": [
+          [
+            3.4,
+            1.6
+          ],
+          [
+            -3.4,
+            -1.6
+          ]
+        ],
+        "finish": "satin"
+      }
+    },
+    {
+      "id": "balance",
+      "chapter": "movement",
+      "order": 11,
+      "name": "テンプ",
+      "nameEn": "Balance Wheel",
+      "type": "balance",
+      "tool": "tweezers",
+      "position": [
+        -5.5,
+        3,
+        -13
+      ],
+      "rotationY": 0,
+      "hitRadius": 8,
+      "role": "一定周期で振動し、時間の基準を作る調速機",
+      "description": "ヒゲゼンマイの弾性で左右に等時性の往復振動を繰り返す輪。この周期が時計の精度そのものを決めます。",
+      "relation": "アンクルから受けたエネルギーで振動し、逆にアンクルの動きを規正します。",
+      "trivia": "このムーブメントは毎時21,600振動(3Hz)。テンプは1秒間に6回、爪石を弾きます。",
+      "wrongReason": "テンプはアンクルのフォークと連動する位置に据えます。離すと振り座がフォークに掛かりません。",
+      "run": {
+        "type": "balance",
+        "delay": 2.8
+      },
+      "params": {
+        "radius": 7.5
+      }
+    },
+    {
+      "id": "balanceCock",
+      "chapter": "movement",
+      "order": 12,
+      "name": "テンプ受け",
+      "nameEn": "Balance Cock",
+      "type": "bridge",
+      "tool": "driver",
+      "position": [
+        -5.5,
+        6.7,
+        -13
+      ],
+      "rotationY": 0,
+      "hitRadius": 6,
+      "role": "テンプ上軸を支え、緩急針で歩度を調整する受け",
+      "description": "片持ちでテンプの上軸受を保持する受け。耐震装置と、ヒゲの有効長を変えて進み遅れを調整する緩急針が載ります。",
+      "relation": "テンプの上ホゾを受け、ヒゲゼンマイを保持します。歩度調整の要です。",
+      "trivia": "1本のネジで固定される片持ち構造のため、英語で cock(コック)と呼ばれます。",
+      "wrongReason": "テンプ受けはテンプ真の真上に置きます。位置を誤るとヒゲが偏り、精度が出ません。",
+      "params": {
+        "thickness": 1.3,
+        "arms": [
+          [
+            0,
+            0,
+            -6,
+            -5.5,
+            3.4
+          ]
+        ],
+        "jewels": [
+          [
+            0,
+            0
+          ]
+        ],
+        "screws": [
+          [
+            -7.6,
+            -7
+          ]
+        ],
+        "finish": "hairline"
+      }
+    },
+    {
+      "id": "stem",
+      "chapter": "movement",
+      "order": 13,
+      "name": "巻真",
+      "nameEn": "Winding Stem",
+      "type": "stem",
+      "tool": "tweezers",
+      "position": [
+        21,
+        -0.9,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 6,
+      "role": "竜頭の回転を内部へ伝え、巻上と時刻合わせを切り替える軸",
+      "description": "キーレスワークの中心軸。引き出し位置により巻上げと時刻合わせを切り替えます。竜頭は最終章で先端に取り付けます。",
+      "relation": "キチ車・丸穴車を介して角穴車(巻上)へ、また日の裏へ(時刻合わせ)力を伝えます。",
+      "trivia": "巻真の角断面部が、はまった歯車を回します。",
+      "wrongReason": "巻真は3時方向のスロットに沿って入ります。他の位置ではキチ車と噛み合いません。",
+      "run": {
+        "type": "wind"
+      },
+      "params": {
+        "length": 13,
+        "radius": 0.7
+      }
+    },
+    {
+      "id": "windingPinion",
+      "chapter": "movement",
+      "order": 14,
+      "name": "キチ車",
+      "nameEn": "Winding Pinion",
+      "type": "pinionX",
+      "tool": "tweezers",
+      "position": [
+        16.5,
+        -0.9,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 4,
+      "role": "巻真の回転を丸穴車へ伝える歯車",
+      "description": "巻真に通る小歯車。竜頭を巻く方向のときだけ噛み合い、動力を丸穴車へ伝えます。",
+      "relation": "巻真に駆動され、丸穴車を回します。",
+      "trivia": "巻上げ時の「ジリジリ」という感触の一端を担います。",
+      "wrongReason": "キチ車は巻真上に通す部品です。巻真の軸線から外れると機能しません。",
+      "run": {
+        "type": "wind"
+      },
+      "params": {
+        "radius": 2.2,
+        "width": 1.6
+      }
+    },
+    {
+      "id": "crownWheel",
+      "chapter": "movement",
+      "order": 15,
+      "name": "丸穴車",
+      "nameEn": "Crown Wheel",
+      "type": "ratchet",
+      "tool": "driver",
+      "position": [
+        -1,
+        5.4,
+        5
+      ],
+      "rotationY": 0,
+      "hitRadius": 4.5,
+      "role": "キチ車の回転を角穴車へ伝える中間歯車",
+      "description": "キチ車と角穴車の間に位置する歯車。中心の穴が丸いことからこの名が付きました。",
+      "relation": "キチ車に駆動され、角穴車を回します。逆回転はコハゼが防ぎます。",
+      "trivia": "丸穴車のネジは逆ネジ(左ネジ)のことが多く、分解時の注意点として有名です。",
+      "wrongReason": "丸穴車はキチ車と角穴車の双方に噛む位置に据えます。ずれると巻上げ系が繋がりません。",
+      "run": {
+        "type": "wind",
+        "dir": -1
+      },
+      "params": {
+        "radius": 4.5,
+        "teeth": 40,
+        "color": "steel"
+      }
+    },
+    {
+      "id": "ratchetWheel",
+      "chapter": "movement",
+      "order": 16,
+      "name": "角穴車",
+      "nameEn": "Ratchet Wheel",
+      "type": "ratchet",
+      "tool": "driver",
+      "position": [
+        -13,
+        5.5,
+        8.5
+      ],
+      "rotationY": 0,
+      "hitRadius": 8,
+      "role": "香箱真に固定され、ゼンマイを直接巻き上げる歯車",
+      "description": "香箱真の角断面にはまる歯車。竜頭・自動巻からの回転が最終的にここへ伝わり、ゼンマイを巻き上げます。",
+      "relation": "丸穴車に駆動され、香箱真を回してゼンマイを巻きます。コハゼで逆転を防ぎます。",
+      "trivia": "中心の穴が四角いため「角穴車」。英語では逆止爪にちなみ Ratchet Wheel。",
+      "wrongReason": "角穴車は香箱真の真上に固定します。香箱中心から外れるとゼンマイを巻けません。",
+      "run": {
+        "type": "wind",
+        "dir": 1
+      },
+      "params": {
+        "radius": 8,
+        "teeth": 56,
+        "color": "brass"
+      }
+    },
+    {
+      "id": "click",
+      "chapter": "movement",
+      "order": 17,
+      "name": "コハゼ",
+      "nameEn": "Click",
+      "type": "click",
+      "tool": "driver",
+      "position": [
+        -5.5,
+        5.5,
+        14.5
+      ],
+      "rotationY": 2.2,
+      "hitRadius": 3.5,
+      "role": "巻いたゼンマイの逆回転を防ぐ爪",
+      "description": "角穴車の歯に掛かり、巻き上げたゼンマイがほどけて逆回転するのを防ぎます。小バネで常に歯へ押し付けられています。",
+      "relation": "角穴車と対になり、一方向の回転のみを許します。",
+      "trivia": "巻上げ時の「ジリジリ」音は、コハゼが歯を乗り越える音です。",
+      "wrongReason": "コハゼは角穴車の歯に掛かる位置に据えます。離れると逆止めが効きません。",
+      "params": {}
+    },
+    {
+      "id": "reversingWheel",
+      "chapter": "movement",
+      "order": 18,
+      "name": "切換車",
+      "nameEn": "Reversing Wheel",
+      "type": "wheel",
+      "tool": "tweezers",
+      "position": [
+        7,
+        7,
+        7
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "ローターの正逆どちらの回転もゼンマイ巻上げに変換する歯車",
+      "description": "ローターがどちら向きに回っても、爪クラッチにより一方向の巻上げに変換する自動巻の要。減速車を介して角穴車へ繋がります。",
+      "relation": "ローターに駆動され、減速車へ回転を渡します。取り付け後、自動巻ブリッジで上から保持されます。",
+      "trivia": "この双方向巻上機構により、腕の自然な動きだけでゼンマイが巻かれます。",
+      "wrongReason": "切換車はローターと減速車の間に噛む位置に据えます。ブリッジより先に取り付けます。",
+      "run": {
+        "type": "spin",
+        "speed": 0.05,
+        "delay": 0.1
+      },
+      "params": {
+        "radius": 4.5,
+        "teeth": 44,
+        "spokes": 5,
+        "color": "steel",
+        "pivotH": 2.4
+      }
+    },
+    {
+      "id": "reductionWheel",
+      "chapter": "movement",
+      "order": 19,
+      "name": "減速車",
+      "nameEn": "Reduction Wheel",
+      "type": "wheel",
+      "tool": "tweezers",
+      "position": [
+        12,
+        7,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 4.5,
+      "role": "切換車の回転を減速して角穴車へ伝える歯車",
+      "description": "自動巻の切換車と角穴車の間に位置する歯車。ローターの速い回転を程よく減速し、ゼンマイの巻き上げへ伝えます。",
+      "relation": "切換車に駆動され、角穴車を巻き上げます。取り付け後、上から自動巻ブリッジで保持されます。",
+      "trivia": "減速比が自動巻の効率と巻上げトルクのバランスを決めます。",
+      "wrongReason": "減速車は切換車と角穴車の間に噛む位置に据えます。外れると自動巻きが伝わりません。",
+      "run": {
+        "type": "spin",
+        "speed": 0.09,
+        "delay": 0.15
+      },
+      "params": {
+        "radius": 3.6,
+        "teeth": 36,
+        "spokes": 4,
+        "color": "steel",
+        "pivotH": 2
+      }
+    },
+    {
+      "id": "autoBridge",
+      "chapter": "movement",
+      "order": 20,
+      "name": "自動巻ブリッジ",
+      "nameEn": "Automatic Device Bridge",
+      "type": "bridge",
+      "tool": "driver",
+      "position": [
+        7,
+        8.4,
+        4
+      ],
+      "rotationY": 0,
+      "hitRadius": 10,
+      "role": "自動巻機構の切換車・減速車を支える受け",
+      "description": "先に据えた切換車・減速車を上から保持するブリッジ。ムーブメント最上層を構成し、自動巻輪列の軸受(ルビー)を持ちます。",
+      "relation": "切換車・減速車の上ホゾを受け、ローターの回転を角穴車へ導く輪列を安定させます。",
+      "trivia": "自動巻の効率は、この切換機構(リバーサー)の設計で決まります。",
+      "wrongReason": "自動巻ブリッジは切換車・減速車を据えた後に重ねて固定します。輪列より先には取り付けられません。",
+      "params": {
+        "thickness": 1.5,
+        "arms": [
+          [
+            0,
+            3,
+            5,
+            -4,
+            4.4
+          ],
+          [
+            0,
+            3,
+            -3,
+            -1,
+            3.6
+          ]
+        ],
+        "jewels": [
+          [
+            0,
+            3
+          ],
+          [
+            5,
+            -4
+          ]
+        ],
+        "screws": [
+          [
+            -4,
+            4
+          ],
+          [
+            8,
+            -5
+          ],
+          [
+            3,
+            -6
+          ]
+        ],
+        "finish": "hairline"
+      }
+    },
+    {
+      "id": "rotor",
+      "chapter": "movement",
+      "order": 21,
+      "name": "ローター(回転錘)",
+      "nameEn": "Oscillating Weight",
+      "type": "rotor",
+      "tool": "driver",
+      "position": [
+        0,
+        10.2,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 20,
+      "role": "腕の動きで回転し、ゼンマイを自動で巻き上げる半円の錘",
+      "description": "ムーブメント中心のボールベアリングで支えられる半円形の重り。腕の動きで回転し、その運動エネルギーを切換車経由でゼンマイに蓄えます。最後に取り付けます。",
+      "relation": "中心軸で回転し、切換車を駆動します。ムーブメントの最上部・最後の部品です。",
+      "trivia": "外周に重いタングステン合金を用いると、少ない動きで効率よく巻き上げられます。",
+      "wrongReason": "ローターは中心のベアリングにのみ取り付きます。中心を外すと支持できません。",
+      "run": {
+        "type": "rotor",
+        "delay": 0
+      },
+      "params": {
+        "radius": 22
+      }
+    },
+    {
+      "id": "cannonPinion",
+      "chapter": "dial",
+      "order": 22,
+      "name": "筒カナ",
+      "nameEn": "Cannon Pinion",
+      "type": "cannonPinion",
+      "tool": "tweezers",
+      "position": [
+        0,
+        0.6,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "二番車の力を受け、分針を駆動する筒状の部品",
+      "description": "二番車の軸に摩擦で嵌る筒状の歯車。1時間に1回転し、先端に長針(分針)が付きます。時刻合わせ時はここが滑って針だけを動かします。",
+      "relation": "二番車の延長軸に嵌り、日の裏車(分車)を介して時車を駆動します。",
+      "trivia": "「筒カナ」の摩擦が適切でないと、針飛びや時刻合わせ不良の原因になります。",
+      "wrongReason": "筒カナは文字盤中心(二番車の軸)にのみ嵌ります。中心を外すと分針の芯が出ません。",
+      "run": {
+        "type": "hand",
+        "hand": "minute",
+        "delay": 0.2
+      },
+      "params": {}
+    },
+    {
+      "id": "minuteWheel",
+      "chapter": "dial",
+      "order": 23,
+      "name": "日の裏車(分車)",
+      "nameEn": "Minute Wheel",
+      "type": "wheel",
+      "tool": "tweezers",
+      "position": [
+        8,
+        0.7,
+        -6
+      ],
+      "rotationY": 0,
+      "hitRadius": 4.5,
+      "role": "筒カナの回転を時車へ12分の1に減速して伝える中間車",
+      "description": "モーションワークの中間歯車。筒カナの回転を受け、時車を1/12の速さで回すことで「分」と「時」の関係を作ります。",
+      "relation": "筒カナに駆動され、時車を回します。時刻合わせの力もここを通ります。",
+      "trivia": "「日の裏車」は文字盤(=日)の裏側にあることに由来する日本語名です。",
+      "wrongReason": "分車は筒カナと時車の双方に噛む位置に据えます。外れると時針が動きません。",
+      "run": {
+        "type": "spin",
+        "speed": 0.02,
+        "delay": 0.3
+      },
+      "params": {
+        "radius": 3.2,
+        "teeth": 30,
+        "spokes": 4,
+        "color": "steel",
+        "pivotH": 1.2
+      }
+    },
+    {
+      "id": "hourWheel",
+      "chapter": "dial",
+      "order": 24,
+      "name": "時車",
+      "nameEn": "Hour Wheel",
+      "type": "hourWheel",
+      "tool": "tweezers",
+      "position": [
+        0,
+        1.4,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "12時間に1回転し、短針を駆動する筒状の歯車",
+      "description": "筒カナの外側に同軸で被さる筒状の歯車。分車に駆動され、12時間で1回転します。先端に短針(時針)が付きます。",
+      "relation": "分車に駆動され、筒カナと同軸で回ります。上に文字盤が載ります。",
+      "trivia": "筒カナ・分車・時車の3点で「モーションワーク(針回し)」を構成します。",
+      "wrongReason": "時車は筒カナと同じ中心に被せます。中心を外すと時針の芯が分針とずれます。",
+      "run": {
+        "type": "hand",
+        "hand": "hour",
+        "delay": 0.4
+      },
+      "params": {}
+    },
+    {
+      "id": "dial",
+      "chapter": "dial",
+      "order": 25,
+      "name": "文字盤",
+      "nameEn": "Dial",
+      "type": "dial",
+      "tool": "tweezers",
+      "position": [
+        0,
+        3.4,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 20,
+      "role": "時刻の目盛りを示す面",
+      "description": "インデックス・分目盛り・スモールセコンドを備えた面。足(ドグ)を地板の穴に挿し、横からネジで固定します。ここで初めて時計は「読める」姿になります。",
+      "relation": "モーションワークを覆い、針の背景となります。中心と9時位置に針軸の穴があります。",
+      "trivia": "文字盤の仕上げ(サンレイ・グレネ・エナメル等)は時計の表情を決定づけます。",
+      "wrongReason": "文字盤はモーションワークを組んだ後に載せます。針より先、モーションワークより後という順序が重要です。",
+      "params": {
+        "radius": 22
+      }
+    },
+    {
+      "id": "hourHand",
+      "chapter": "dial",
+      "order": 26,
+      "name": "短針(時針)",
+      "nameEn": "Hour Hand",
+      "type": "hand",
+      "tool": "tweezers",
+      "position": [
+        0,
+        4.2,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "時を示す最も短い針",
+      "description": "時車の筒に圧入する太く短い針。専用の針入れ工具で、力を垂直にかけて打ち込みます。",
+      "relation": "時車に取り付き、12時間で1回転します。3針の最下層です。",
+      "trivia": "針の打ち込みは高さ管理が重要。少しの傾きが文字盤との接触や重なり不良を招きます。",
+      "wrongReason": "短針は必ず中心の時車に付けます。中心以外に軸はありません。順序も時針→分針→秒針です。",
+      "run": {
+        "type": "hand",
+        "hand": "hour",
+        "delay": 0.4
+      },
+      "params": {
+        "style": "hour",
+        "length": 17
+      }
+    },
+    {
+      "id": "minuteHand",
+      "chapter": "dial",
+      "order": 27,
+      "name": "長針(分針)",
+      "nameEn": "Minute Hand",
+      "type": "hand",
+      "tool": "tweezers",
+      "position": [
+        0,
+        4.85,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "分を示す最も長い針",
+      "description": "筒カナに圧入する細く長い針。短針の上に、わずかな隙間を保って重ねます。",
+      "relation": "筒カナに取り付き、1時間で1回転します。短針の上層です。",
+      "trivia": "短針と長針の隙間(針高さ)の管理は、針同士の接触を防ぐ職人の腕の見せどころです。",
+      "wrongReason": "長針は中心の筒カナに付けます。短針の後、秒針の前という順序を守ります。",
+      "run": {
+        "type": "hand",
+        "hand": "minute",
+        "delay": 0.2
+      },
+      "params": {
+        "style": "minute",
+        "length": 20
+      }
+    },
+    {
+      "id": "secondsHand",
+      "chapter": "dial",
+      "order": 28,
+      "name": "秒針",
+      "nameEn": "Seconds Hand",
+      "type": "hand",
+      "tool": "tweezers",
+      "position": [
+        13,
+        4.5,
+        -0.8
+      ],
+      "rotationY": 0,
+      "hitRadius": 4.5,
+      "role": "秒を示す針(スモールセコンド)",
+      "description": "9時位置のスモールセコンド軸(四番車の延長)に圧入する極細の針。1分で1回転し、時計が動いていることを一目で示します。",
+      "relation": "四番車の軸に取り付きます。中心ではなく9時の小秒針です。",
+      "trivia": "極細のため最も慎重な圧入が要求されます。曲げると即やり直しです。",
+      "wrongReason": "秒針は中心ではなく9時位置の四番車軸に付けます。三針の最後の工程です。",
+      "run": {
+        "type": "hand",
+        "hand": "seconds",
+        "delay": 0
+      },
+      "params": {
+        "style": "seconds",
+        "length": 4.8
+      }
+    },
+    {
+      "id": "caseMiddle",
+      "chapter": "case",
+      "order": 29,
+      "name": "ケースミドル",
+      "nameEn": "Case Middle",
+      "type": "case",
+      "tool": "tweezers",
+      "position": [
+        0,
+        -0.5,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 24,
+      "role": "ムーブメントを収める本体ケース",
+      "description": "ムーブメントを収める胴。3時位置に竜頭のチューブがあります。ヘアライン仕上げの側面と鏡面のラグ上面で構成します。",
+      "relation": "ムーブメント外周を保持し、風防・ベゼル・裏蓋の受け座となります。",
+      "trivia": "削り出し(CNC)後、ヘアライン・ポリッシュを面ごとに分けて磨き分けるのが高級ケースの証です。",
+      "wrongReason": "ケースはムーブメントの外側を囲う土台。中心付近ではムーブメントと干渉します。",
+      "params": {
+        "outer": 30,
+        "inner": 24.5,
+        "height": 8
+      }
+    },
+    {
+      "id": "movementRing",
+      "chapter": "case",
+      "order": 30,
+      "name": "ムーブメントリング",
+      "nameEn": "Movement Ring / Spacer",
+      "type": "spacer",
+      "tool": "tweezers",
+      "position": [
+        0,
+        3.2,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 24,
+      "role": "ムーブメントとケースの隙間を埋め固定するリング",
+      "description": "ムーブメントの径をケース内径に合わせるスペーサー。ガタつきを無くし、ムーブメントを正しい高さに保持します。",
+      "relation": "ムーブメント外周とケース内壁の間に入り、両者を密着させます。",
+      "trivia": "スペーサーの精度がムーブメントの水平・高さを決め、針と風防の隙間に直結します。",
+      "wrongReason": "ムーブメントリングはケース内壁とムーブメントの間の環状の隙間に収まります。中心には入りません。",
+      "params": {
+        "outer": 24.4,
+        "inner": 22
+      }
+    },
+    {
+      "id": "gasket",
+      "chapter": "case",
+      "order": 31,
+      "name": "パッキン",
+      "nameEn": "Gasket",
+      "type": "gasket",
+      "tool": "tweezers",
+      "position": [
+        0,
+        5,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 24,
+      "role": "水や埃の侵入を防ぐ防水リング",
+      "description": "風防とケースの間に収める環状のゴムパッキン。適量のシリコングリスを塗り、防水性を確保します。",
+      "relation": "風防とケースの合わせ目に挟まり、密閉します。",
+      "trivia": "パッキンは経年で硬化するため、電池交換やオーバーホール時に交換するのが基本です。",
+      "wrongReason": "パッキンは風防の座(ケース上部の溝)に収めます。位置がずれると防水が成立しません。",
+      "params": {
+        "radius": 22.6,
+        "thickness": 0.32
+      }
+    },
+    {
+      "id": "crystal",
+      "chapter": "case",
+      "order": 32,
+      "name": "風防(サファイアガラス)",
+      "nameEn": "Sapphire Crystal",
+      "type": "crystal",
+      "tool": "tweezers",
+      "position": [
+        0,
+        6.4,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 24,
+      "role": "文字盤を保護する透明なガラス",
+      "description": "文字盤を覆う、わずかにドーム状のサファイアガラス。硬度が高く傷に強い高級時計の標準です。内面には無反射コートを施します。",
+      "relation": "パッキンを介してケースに圧入され、文字盤・針を保護します。",
+      "trivia": "サファイアはモース硬度9。ダイヤモンド以外では傷つきにくい素材です。",
+      "wrongReason": "風防はケース最上部の座に嵌めます。パッキンより後、ベゼルより先という順序を守ります。",
+      "params": {
+        "radius": 23
+      }
+    },
+    {
+      "id": "bezel",
+      "chapter": "case",
+      "order": 33,
+      "name": "ベゼル",
+      "nameEn": "Bezel",
+      "type": "bezel",
+      "tool": "tweezers",
+      "position": [
+        0,
+        6.9,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 24,
+      "role": "風防を押さえ、ケース上面を縁取るリング",
+      "description": "風防を上から押さえてケースに固定する鏡面のリング。時計の表情を引き締める額縁の役割も果たします。",
+      "relation": "風防を保持し、ケースミドル上面に嵌合します。",
+      "trivia": "ベゼルの鏡面(ポリッシュ)は光の反射で立体感を生み、上品な印象を決めます。",
+      "wrongReason": "ベゼルは風防を組んだ後に被せます。風防より先には固定できません。",
+      "params": {
+        "outer": 30,
+        "inner": 22.5,
+        "height": 1.6
+      }
+    },
+    {
+      "id": "caseBack",
+      "chapter": "case",
+      "order": 34,
+      "name": "裏蓋(シースルー)",
+      "nameEn": "Exhibition Case Back",
+      "type": "caseBack",
+      "tool": "driver",
+      "position": [
+        0,
+        -3,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 24,
+      "role": "ムーブメントを守り、背面から鑑賞させる蓋",
+      "description": "サファイアの窓を持つねじ込み式の裏蓋。ローターやテンプの動きを背面から鑑賞できます。パッキンで防水します。",
+      "relation": "ケース背面にねじ込み、ムーブメントを密閉・保護します。",
+      "trivia": "シースルーバックは、機械式時計の美しさを愛でる文化そのものを象徴します。",
+      "wrongReason": "裏蓋はケース背面(下側)に取り付けます。表側からは装着できません。",
+      "params": {
+        "radius": 27,
+        "window": 20
+      }
+    },
+    {
+      "id": "crown",
+      "chapter": "case",
+      "order": 35,
+      "name": "竜頭(リューズ)",
+      "nameEn": "Crown",
+      "type": "crown",
+      "tool": "tweezers",
+      "position": [
+        30.5,
+        0.5,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "巻上げと時刻合わせを行うつまみ",
+      "description": "ケースの3時チューブを通し、巻真の先端にねじ込む操作部。防水パッキンを内蔵します。これで巻上げ・時刻合わせが可能になります。",
+      "relation": "ケースを貫通して巻真と結合し、外部からの操作を内部へ伝えます。",
+      "trivia": "王冠(クラウン)に形が似ることから「竜頭」。ねじ込み式は防水性を高めます。",
+      "wrongReason": "竜頭はケース3時のチューブ位置で巻真とねじ結合します。他の位置には軸がありません。",
+      "run": {
+        "type": "wind"
+      },
+      "params": {
+        "radius": 3.2,
+        "width": 2.6
+      }
+    }
+  ]
+}
