@@ -94,7 +94,25 @@
       <div class="tool-name">オイラー<span class="tool-en">Oiler</span></div>
     </div>
     <div id="tool-guide">工具を選択し、作業対象をクリックしてください。</div>
+
+    <!-- 常設ガイド: 中央メッセージを見逃しても次の操作が分かるように -->
+    <div id="right-status">
+      <div class="rs-head">次の操作 <span>Next Step</span></div>
+      <div class="rs-main" id="rs-main">—</div>
+      <div class="rs-row"><span class="rs-key">工具</span><span class="rs-val" id="rs-tool">—</span></div>
+      <div class="rs-row" id="rs-oil-row" hidden><span class="rs-key rs-oilkey">注油</span><span class="rs-val rs-oilval">この工程は注油が必要です</span></div>
+    </div>
   </aside>
+
+  <!-- ============ カスタマイズ選択オーバーレイ ============ -->
+  <div id="custom-overlay" hidden>
+    <div id="custom-card" class="glass">
+      <div class="custom-title" id="custom-title">仕様を選ぶ</div>
+      <div class="custom-sub" id="custom-sub">Choose Your Specification</div>
+      <div id="custom-groups"></div>
+      <button type="button" id="custom-confirm">この仕様で仕立てる</button>
+    </div>
+  </div>
 
   <!-- ============ 下部: 部品トレイ ============ -->
   <footer id="tray">

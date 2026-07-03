@@ -14,17 +14,18 @@
       this.canvas = canvas;
 
       /* ---- レンダラー ---- */
-      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true, alpha: true });
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.renderer.setClearColor(0x000000, 0); // 背景の机画像を透過して見せる
       this.renderer.outputEncoding = THREE.sRGBEncoding;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1.0;
 
       /* ---- シーン ---- */
       this.scene = new THREE.Scene();
-      this.scene.background = new THREE.Color(0x08080a);
-      this.scene.fog = new THREE.Fog(0x08080a, 160, 320);
+      this.scene.background = null;                 // CSS の机背景を透かす
+      this.scene.fog = new THREE.Fog(0x0b0b0d, 190, 360);
 
       /* ---- カメラ(球面座標で管理する自作オービット) ---- */
       this.camera = new THREE.PerspectiveCamera(
@@ -43,6 +44,7 @@
       /* ---- レイキャスト ---- */
       this.raycaster = new THREE.Raycaster();
       this._pointerNdc = new THREE.Vector2();
+      this._dragImpulse = 0;   // ローター慣性へ渡す、直近フレームのドラッグ方位量
 
       /* ---- コールバック ---- */
       this.tickHandlers = [];       // 毎フレーム: fn(dt, elapsed)
@@ -109,7 +111,8 @@
     }
 
     /* ------------------------------------------------------------
-       床: 中央だけ淡く照らされた作業マット(放射グラデーション)
+       接地シャドウ: 机マット上にムーブメントが乗って見えるよう、
+       中央だけ柔らかい暗がりを敷く(透明フェードのソフトコンタクトシャドウ)
        ------------------------------------------------------------ */
     _setupGround() {
       const size = 512;
@@ -117,17 +120,17 @@
       cv.width = cv.height = size;
       const ctx = cv.getContext("2d");
       const g = ctx.createRadialGradient(size / 2, size / 2, 20, size / 2, size / 2, size / 2);
-      g.addColorStop(0, "#17181c");
-      g.addColorStop(0.55, "#0b0c0e");
-      g.addColorStop(1, "#08080a");
+      g.addColorStop(0, "rgba(0,0,0,0.42)");
+      g.addColorStop(0.5, "rgba(0,0,0,0.24)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, size, size);
 
       const tex = new THREE.CanvasTexture(cv);
-      tex.encoding = THREE.sRGBEncoding; // トーンマップで白飛びしないように
+      tex.encoding = THREE.sRGBEncoding;
       const ground = new THREE.Mesh(
-        new THREE.CircleGeometry(160, 64),
-        new THREE.MeshBasicMaterial({ map: tex })
+        new THREE.CircleGeometry(120, 64),
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
       );
       ground.rotation.x = -Math.PI / 2;
       ground.position.y = -6.5;
@@ -179,6 +182,8 @@
         lastX = e.clientX; lastY = e.clientY;
         this.orbitGoal.theta -= dx * 0.005;
         this.orbitGoal.phi = Math.min(1.42, Math.max(0.18, this.orbitGoal.phi - dy * 0.004));
+        // ローターの慣性入力用にドラッグ量(方位変化)を蓄積する
+        this._dragImpulse += -dx * 0.005;
       });
 
       const endPointer = (e) => {
@@ -213,6 +218,9 @@
 
     /** クリック判定の対象(配置済み部品グループ)を設定 */
     setClickTargets(groups) { this._clickTargets = groups; }
+
+    /** ローター慣性用: 蓄積したドラッグ方位量を取り出して 0 に戻す */
+    consumeDragImpulse() { const v = this._dragImpulse; this._dragImpulse = 0; return v; }
 
     /* ------------------------------------------------------------
        レイキャストヘルパー
@@ -272,10 +280,10 @@
       loop();
     }
 
-    /* 通常背景へ戻す(メニュー復帰時) */
+    /* 通常背景へ戻す(メニュー復帰時): 机画像を見せる */
     setNormalBackground() {
-      this.scene.background = new THREE.Color(0x050506);
-      this.scene.fog = new THREE.Fog(0x08080a, 160, 320);
+      this.scene.background = null;
+      this.scene.fog = new THREE.Fog(0x0b0b0d, 190, 360);
     }
 
     /* 完成シネマティック: 背景を黒〜濃紺のグラデーションへ */

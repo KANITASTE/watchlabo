@@ -44,6 +44,12 @@
       this.busy = false;         // 演出中は操作を止める
       this.ctaAction = null;     // プライマリボタンの現在の動作
 
+      /* ---- カスタマイズ(文字盤/針/ベゼル/竜頭の仕立て) ---- */
+      this.custom = Object.assign(
+        { dial: "silver", handColor: "blued", handShape: "breguet", bezel: "polished", crown: "fluted" },
+        this._restoreCustom()
+      );
+
       /* ---- 時刻合わせ(完成後に端末の現在時刻へ同期) ---- */
       this.timeSync = false;      // 現在時刻に同期中
       this._calibrating = false;  // 時刻合わせ演出中
@@ -73,6 +79,7 @@
       const PF = WatchSim.PartFactory;
 
       this.parts.forEach((part) => {
+        this._applyCustomParams(part);
         const group = PF.create(part);
         group.userData.baseRotY = part.rotationY || 0;
         this.groups[part.id] = part._group = group;
@@ -208,8 +215,15 @@
           this.ui.setActiveTool("oiler");
           this.ui.setToolGuide("『オイラー』を選び、青いルビー軸受をクリックして注油してください。");
         }
+        const oilNow = !!this.pendingOil;
+        this.ui.setNextStep(
+          oilNow ? "青いルビー軸受をクリックして注油" : cur.name + "（" + cur.nameEn + "）を配置",
+          oilNow ? "オイラー" : this.toolName(cur.tool),
+          oilNow
+        );
         this.ui.hideCTA();
       } else if (!this.busy) {
+        this.ui.setNextStep("この章は完了です — 次の工程へ", "—", false);
         // 章が完了 → 次のアクション
         this._onChapterComplete(this.activeChapter);
       }
@@ -443,12 +457,14 @@
           cam.orbitGoal.phi = 0.9;
           cam.orbitGoal.radius = startRad;
           this.flipping = false;
-          this.busy = false;
           this.activeChapter = "dial";
           this._save();
           this.ui.hideCinematic();
-          this.ui.showMessage("Dial-Side Assembly", "accent", "第2章 — 文字盤側の組立を始めます", 2200);
-          setTimeout(() => this._refresh(), 600);
+          // 文字盤側の直前に「文字盤と針」を仕立てる
+          this._openDialCustomizer(() => {
+            this.ui.showMessage("Dial-Side Assembly", "accent", "第2章 — 文字盤側の組立を始めます", 2200);
+            setTimeout(() => this._refresh(), 400);
+          });
         }
       });
     }
@@ -467,11 +483,13 @@
         onUpdate: (k) => { cam.orbitGoal.radius = lerp(cam.orbit.radius, 108, k * 0.5 + 0.5); },
         onDone: () => {
           cam.orbitGoal.radius = 108;
-          this.busy = false;
           this.activeChapter = "case";
           this._save();
-          this.ui.showMessage("Casing", "accent", "第3章 — ケーシング(外装組立)", 2200);
-          setTimeout(() => this._refresh(), 600);
+          // ケーシングの直前に「ベゼルと竜頭」を仕立てる
+          this._openCaseCustomizer(() => {
+            this.ui.showMessage("Casing", "accent", "第3章 — ケーシング(外装組立)", 2200);
+            setTimeout(() => this._refresh(), 400);
+          });
         }
       });
     }
@@ -508,13 +526,13 @@
       this.finalState = null;
 
       if (act === "view") {
-        // 文字盤側をゆっくり鑑賞
+        // 文字盤側を正面から鑑賞(12時が上・竜頭が右)
         this.watch.rotation.x = 0;
-        cam.orbitGoal.phi = 0.5; cam.orbitGoal.theta = -0.2; cam.orbitGoal.radius = 116;
+        cam.orbitGoal.phi = 0.42; cam.orbitGoal.theta = 0.06; cam.orbitGoal.radius = this._fitRadius();
       } else if (act === "movement") {
         // 裏側(ムーブメント/ローター)を見る
         this.watch.rotation.x = Math.PI;
-        cam.orbitGoal.phi = 0.7; cam.orbitGoal.theta = 0.4; cam.orbitGoal.radius = 116;
+        cam.orbitGoal.phi = 0.66; cam.orbitGoal.theta = 0.4; cam.orbitGoal.radius = this._fitRadius() + 6;
       } else if (act === "menu") {
         // メインの組立ビューへ戻る(UIを復帰)
         this.busy = false;
@@ -555,7 +573,8 @@
        完成後: 針を現在時刻へ合わせる演出 → 以後は端末時刻に同期
        ------------------------------------------------------------ */
 
-    /** 現在(またはoffsetSec秒後)のローカル時刻から各針の回転角を求める */
+    /** 現在(またはoffsetSec秒後)のローカル時刻から各針の時刻角 θ を求める。
+        θ: 0 = 12時位置、時計回りに増加(文字盤テクスチャの規約と一致)。 */
     _currentHandAngles(offsetSec) {
       const now = new Date(Date.now() + (offsetSec || 0) * 1000);
       let s = now.getSeconds() + now.getMilliseconds() / 1000;
@@ -569,6 +588,9 @@
       };
     }
 
+    /** 針の回転角: 共通規約 WatchSim.HAND に委譲し、文字盤描画と厳密に一致させる。 */
+    _handRotY(baseRotY, theta) { return WatchSim.HAND.rotY(baseRotY, theta); }
+
     /** 時刻合わせ演出の開始(必ず時計回りに複数周してから現在時刻へ) */
     startTimeCalibration() {
       if (this._calibStarted) return;
@@ -581,8 +603,8 @@
         const g = this.groups[id];
         if (!g) return null;
         const base = g.userData.baseRotY || 0;
-        const targetRotY = base - targetAng;                     // 最終静止角
-        const startRotY = targetRotY + turns * Math.PI * 2;      // 上から時計回りに回してくる
+        const targetRotY = this._handRotY(base, targetAng);       // 最終静止角
+        const startRotY = targetRotY - turns * Math.PI * 2;       // 時計回りに回してくる
         g.rotation.y = startRotY;                                // 開始位置へ
         return { g, startRotY, targetRotY };
       };
@@ -624,7 +646,7 @@
       const a = this._currentHandAngles();
       const set = (id, ang) => {
         const g = this.groups[id];
-        if (g) g.rotation.y = (g.userData.baseRotY || 0) - ang;
+        if (g) g.rotation.y = this._handRotY(g.userData.baseRotY || 0, ang);
       };
       set("secondsHand", a.seconds);
       set("minuteHand", a.minute);
@@ -641,8 +663,8 @@
     _setFinalCamera() {
       const cam = this.sceneMgr;
       cam.target.set(0, 3, 0);
-      cam.orbitGoal.phi = 0.6;      // わずかに斜め上
-      cam.orbitGoal.theta = 0.34;   // わずかに斜め横
+      cam.orbitGoal.phi = 0.44;     // わずかに斜め上から正対
+      cam.orbitGoal.theta = 0.06;   // 12時が上・竜頭が右に来る正面
       cam.orbitGoal.radius = this._fitRadius();
     }
 
@@ -695,10 +717,127 @@
       this.parts.forEach((p) => { if (saved.includes(p.id)) this._placeInstant(p); });
     }
 
+    /* ------------------------------------------------------------
+       カスタマイズ: パラメータ適用 / 部品再生成 / 選択UI / 保存
+       ------------------------------------------------------------ */
+    _applyCustomParams(part) {
+      const p = part.params || (part.params = {});
+      if (part.type === "dial") p.dialStyle = this.custom.dial;
+      else if (part.type === "hand") {
+        p.handColor = this.custom.handColor;
+        if (p.style !== "seconds") p.handShape = this.custom.handShape;
+      } else if (part.type === "bezel") p.bezelFinish = this.custom.bezel === "polished" ? null : this.custom.bezel;
+      else if (part.type === "crown") p.crownStyle = this.custom.crown;
+    }
+
+    /** 選択に合わせて部品グループとサムネイルを作り直す(配置前後どちらでも安全) */
+    _rebuildPart(id) {
+      const part = this.parts.find((p) => p.id === id);
+      if (!part) return;
+      this._applyCustomParams(part);
+      const old = this.groups[id];
+      const wasPlaced = this.placed.has(id);
+      const parent = old && old.parent;
+      if (parent) parent.remove(old);
+      const PF = WatchSim.PartFactory;
+      const g = PF.create(part);
+      g.userData.baseRotY = part.rotationY || 0;
+      this.groups[id] = part._group = g;
+      part._thumb = PF.thumbnail(g, this.sceneMgr.scene.environment);
+      PF.disposeThumbnailer();
+      if (wasPlaced) this._placeInstant(part);
+    }
+
+    _restoreCustom() {
+      try { const raw = localStorage.getItem("watchsim.custom.v1"); return raw ? JSON.parse(raw) : null; }
+      catch (e) { return null; }
+    }
+    _saveCustom() {
+      try { localStorage.setItem("watchsim.custom.v1", JSON.stringify(this.custom)); } catch (e) {}
+    }
+
+    /** 第2章の直前: 文字盤と針を選ぶ */
+    _openDialCustomizer(done) {
+      this.busy = true;
+      this.ui.showCustomizer({
+        title: "文字盤と針を仕立てる",
+        sub: "Dial & Hands — あなたの一本を選ぶ",
+        current: { dial: this.custom.dial, handColor: this.custom.handColor, handShape: this.custom.handShape },
+        groups: [
+          { key: "dial", label: "文字盤", en: "Dial", options: [
+            { value: "silver", name: "シルバー", en: "Silver Opaline", swatch: "radial-gradient(circle at 38% 32%, #f3efe6, #d6d2c5)" },
+            { value: "slate", name: "スレート", en: "Slate Grey", swatch: "radial-gradient(circle at 38% 32%, #3c424a, #1b1f25)" },
+            { value: "navy", name: "ミッドナイト", en: "Midnight Blue", swatch: "radial-gradient(circle at 38% 32%, #2c3d64, #101a30)" }
+          ] },
+          { key: "handColor", label: "針の仕上げ", en: "Hand Finish", options: [
+            { value: "blued", name: "ブルースチール", en: "Blued Steel", swatch: "linear-gradient(135deg, #2f50ad, #16264d)" },
+            { value: "gold", name: "ゴールド", en: "Yellow Gold", swatch: "linear-gradient(135deg, #e8c880, #b8923f)" },
+            { value: "rhodium", name: "ロジウム", en: "Rhodium", swatch: "linear-gradient(135deg, #eef1f6, #bfc5cf)" }
+          ] },
+          { key: "handShape", label: "針の形状", en: "Hand Style", options: [
+            { value: "breguet", name: "ブレゲ", en: "Breguet", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><line x1="15" y1="27" x2="15" y2="11" stroke="#cdd2da" stroke-width="2"/><circle cx="15" cy="8.5" r="3.6" fill="none" stroke="#cdd2da" stroke-width="1.6"/></svg>' },
+            { value: "dauphine", name: "ドーフィン", en: "Dauphine", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><polygon points="15,4 18.2,26 11.8,26" fill="#cdd2da"/></svg>' }
+          ] }
+        ],
+        onConfirm: (sel) => {
+          Object.assign(this.custom, sel);
+          this._saveCustom();
+          ["dial", "hourHand", "minuteHand", "secondsHand"].forEach((id) => this._rebuildPart(id));
+          this.busy = false;
+          this.ui.showMessage("仕様を決定", "accent", "選んだ文字盤と針で仕立てます", 1800);
+          if (done) done();
+        }
+      });
+    }
+
+    /** 第3章の直前: ベゼルと竜頭を選ぶ */
+    _openCaseCustomizer(done) {
+      this.busy = true;
+      this.ui.showCustomizer({
+        title: "ベゼルと竜頭を仕立てる",
+        sub: "Bezel & Crown — 外装の意匠",
+        current: { bezel: this.custom.bezel, crown: this.custom.crown },
+        groups: [
+          { key: "bezel", label: "ベゼル", en: "Bezel", options: [
+            { value: "polished", name: "ポリッシュ", en: "Polished Steel", swatch: "linear-gradient(135deg, #eef1f6, #aeb4be)" },
+            { value: "gold", name: "ゴールド", en: "Yellow Gold", swatch: "linear-gradient(135deg, #e8c880, #b8923f)" },
+            { value: "fluted", name: "コインエッジ", en: "Fluted", swatch: "repeating-linear-gradient(90deg, #d3d8e0 0 3px, #969ca6 3px 5px)" }
+          ] },
+          { key: "crown", label: "竜頭", en: "Crown", options: [
+            { value: "fluted", name: "メダリオン", en: "Fluted / Medallion", swatch: "radial-gradient(circle at 50% 50%, #c9a85f 0 30%, #9aa0aa 33%)" },
+            { value: "cabochon", name: "カボション", en: "Cabochon", swatch: "radial-gradient(circle at 40% 35%, #4a6bd0, #16264d)" }
+          ] }
+        ],
+        onConfirm: (sel) => {
+          Object.assign(this.custom, sel);
+          this._saveCustom();
+          ["bezel", "crown"].forEach((id) => this._rebuildPart(id));
+          this.busy = false;
+          this.ui.showMessage("仕様を決定", "accent", "選んだベゼルと竜頭で仕上げます", 1800);
+          if (done) done();
+        }
+      });
+    }
+
     reset() {
       if (!confirm("組立の進捗をすべてリセットしますか?")) return;
       try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
       location.reload();
+    }
+
+    /* 開発用: 全部品を即時配置し、文字盤側を表にして現在時刻同期まで進める */
+    _debugComplete() {
+      this.parts.forEach((p) => { if (!this.placed.has(p.id)) this._placeInstant(p); });
+      this.movementInner.rotation.x = Math.PI;
+      this.movementInner.position.y = -3;
+      this.watch.rotation.x = 0;
+      this.running = true;
+      this.activeChapter = "case";
+      this._calibStarted = true; this._calibrating = false; this._calib = null;
+      this.timeSync = true;
+      this._updateClock();
+      this._setFinalCamera();
+      this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
     }
 
     /* ------------------------------------------------------------
@@ -750,11 +889,19 @@
         if (k >= 1) this._finishWinding();
       }
 
-      // ローターの慣性回転: 摩擦で徐々に減速し、自然に静止する(永久回転・点滅なし)
-      if (this.placed.has("rotor") && Math.abs(this.rotorVel) > 0.0005) {
-        this.groups.rotor.rotation.y += this.rotorVel * dt;
-        this.rotorVel *= Math.pow(0.5, dt * 1.05);
-        if (Math.abs(this.rotorVel) < 0.02) this.rotorVel = 0;
+      // ローターの慣性回転: 視点ドラッグに追従して揺れ・回転し、摩擦で自然に静止する。
+      // ゆっくり動かせば少し追従し、勢いよく動かせば大きく回り、慣性で回り続けてから減衰する。
+      if (this.placed.has("rotor")) {
+        const impulse = this.sceneMgr.consumeDragImpulse();
+        this.rotorVel += impulse * 7.5;                 // ドラッグ方位量 → 慣性入力
+        // 過大入力の頭打ち(暴れ防止)
+        this.rotorVel = Math.max(-16, Math.min(16, this.rotorVel));
+        if (Math.abs(this.rotorVel) > 1e-4) {
+          this.groups.rotor.rotation.y += this.rotorVel * dt;
+          // 偏心した回転錘らしい重み: 軸受摩擦+空気抵抗でゆっくり減衰
+          this.rotorVel *= Math.pow(0.5, dt * 0.85);
+          if (Math.abs(this.rotorVel) < 0.012) this.rotorVel = 0;
+        }
       }
 
       // ムーブメント駆動
@@ -819,7 +966,7 @@
             let sec = local * handSpeed;
             if (run.hand === "seconds") sec = Math.floor(sec * 6) / 6;
             const ang = sec / period * Math.PI * 2;
-            g.rotation.y = g.userData.baseRotY - ang;
+            g.rotation.y = this._handRotY(g.userData.baseRotY || 0, ang);
             break;
           }
         }

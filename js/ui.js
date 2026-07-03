@@ -39,6 +39,14 @@
         lightStreakEl: $("light-streak"),
         finalCaption: $("final-caption"),
         toolGuide: $("tool-guide"),
+        rsMain: $("rs-main"),
+        rsTool: $("rs-tool"),
+        rsOilRow: $("rs-oil-row"),
+        customOverlay: $("custom-overlay"),
+        customTitle: $("custom-title"),
+        customSub: $("custom-sub"),
+        customGroups: $("custom-groups"),
+        customConfirm: $("custom-confirm"),
         tools: {
           driver: $("tool-driver"),
           tweezers: $("tool-tweezers"),
@@ -230,6 +238,58 @@
       if (this.el.toolGuide) this.el.toolGuide.textContent = text;
     }
 
+    /** 常設「次の操作」表示(中央メッセージを見逃しても復帰できる) */
+    setNextStep(mainText, toolText, oil) {
+      if (this.el.rsMain) this.el.rsMain.textContent = mainText || "—";
+      if (this.el.rsTool) this.el.rsTool.textContent = toolText || "—";
+      if (this.el.rsOilRow) this.el.rsOilRow.hidden = !oil;
+      document.body.classList.toggle("oiling", !!oil);
+    }
+
+    /* ------------------------------------------------------------
+       カスタマイズ選択オーバーレイ
+       spec = { title, sub, current:{key:value}, groups:[{key,label,en,options:[{value,name,en,swatch}]}], onConfirm(sel) }
+       swatch が # / linear / radial で始まれば背景色、それ以外は SVG などの innerHTML。
+       ------------------------------------------------------------ */
+    showCustomizer(spec) {
+      const ov = this.el.customOverlay, groupsEl = this.el.customGroups;
+      if (!ov) { spec.onConfirm && spec.onConfirm(spec.current || {}); return; }
+      this.el.customTitle.textContent = spec.title || "仕様を選ぶ";
+      this.el.customSub.textContent = spec.sub || "";
+      groupsEl.innerHTML = "";
+      const sel = Object.assign({}, spec.current);
+      (spec.groups || []).forEach((gp) => {
+        const gEl = document.createElement("div");
+        gEl.className = "custom-group";
+        const h = document.createElement("h4");
+        h.innerHTML = gp.label + " <span>" + gp.en + "</span>";
+        gEl.appendChild(h);
+        const opts = document.createElement("div");
+        opts.className = "custom-opts";
+        gp.options.forEach((o) => {
+          const b = document.createElement("div");
+          b.className = "custom-opt" + (sel[gp.key] === o.value ? " sel" : "");
+          const sw = document.createElement("div");
+          sw.className = "custom-swatch";
+          if (/^(#|linear|radial|repeating)/.test(o.swatch)) sw.style.background = o.swatch;
+          else sw.innerHTML = o.swatch;
+          const nm = document.createElement("div"); nm.className = "co-name"; nm.textContent = o.name;
+          const en = document.createElement("div"); en.className = "co-en"; en.textContent = o.en;
+          b.append(sw, nm, en);
+          b.addEventListener("click", () => {
+            sel[gp.key] = o.value;
+            opts.querySelectorAll(".custom-opt").forEach((x) => x.classList.remove("sel"));
+            b.classList.add("sel");
+          });
+          opts.appendChild(b);
+        });
+        gEl.appendChild(opts);
+        groupsEl.appendChild(gEl);
+      });
+      this.el.customConfirm.onclick = () => { ov.hidden = true; spec.onConfirm && spec.onConfirm(sel); };
+      ov.hidden = false;
+    }
+
     /* ------------------------------------------------------------
        モード切替
        ------------------------------------------------------------ */
@@ -261,10 +321,10 @@
     /* ------------------------------------------------------------
        中央メッセージ
        ------------------------------------------------------------ */
-    showMessage(text, kind = "ok", sub = "", duration = 1150) {
+    showMessage(text, kind = "ok", sub = "", duration = 1500) {
       this.el.msgLayer.innerHTML = "";
       const div = document.createElement("div");
-      div.className = "msg" + (kind === "error" ? " error" : kind === "accent" ? " accent" : "");
+      div.className = "msg" + (kind && kind !== "ok" ? " " + kind : "");
       div.style.animationDuration = duration + "ms";
       const main = document.createElement("span");
       main.className = "msg-main";

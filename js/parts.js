@@ -32,6 +32,18 @@
   const SMALL_SECONDS_CENTER = { x: 13, y: 4.4, z: -0.8 };
   window.WatchSim.SMALL_SECONDS_CENTER = SMALL_SECONDS_CENTER;
 
+  /* 針の向きの共通規約(parts.js の文字盤描画と assembly.js の運針で共有)。
+     ・幾何は +X 方向へ伸びる。rotation.y=ρ のとき針先はワールド (cosρ, -sinρ)〔(x,z)〕を指す。
+     ・時刻角 θ(0=12時, dir で回り方向)に対し ρ = offset + dir*θ。
+     offset / dir は完成時計の見た目(12時の位置・時計回り)に合わせて調整する。 */
+  const HAND = {
+    offset: Math.PI / 2,
+    dir: -1,
+    rotY(base, theta) { return (base || 0) + this.offset + this.dir * theta; },
+    worldDir(theta) { const r = this.offset + this.dir * theta; return [Math.cos(r), -Math.sin(r)]; }
+  };
+  window.WatchSim.HAND = HAND;
+
   /* ============================================================
      1) 仕上げテクスチャ (CanvasTexture)
      すべて 512px 正方・シームレスでなくても部品単位なら十分
@@ -869,6 +881,24 @@
     });
   }
 
+  /* 針の仕上げバリエーション(第2章のカスタマイズで選択)。
+     どれを選んでも高級時計として破綻しない上品な3色。 */
+  function handMat(colorKey) {
+    switch (colorKey) {
+      case "gold":
+        return new THREE.MeshStandardMaterial({
+          color: 0xd8b56a, roughness: 0.16, metalness: 1.0, envMapIntensity: 0.85
+        });
+      case "rhodium":
+        return new THREE.MeshStandardMaterial({
+          color: 0xe4e8ee, roughness: 0.1, metalness: 1.0, envMapIntensity: 0.9
+        });
+      case "blued":
+      default:
+        return bluedHandMat();
+    }
+  }
+
   /**
    * 針の形状を Shape+ExtrudeGeometry で定義し直す。
    * ・箱を並べる方式をやめ、半幅関数を多数サンプルした連続輪郭にする。
@@ -878,8 +908,9 @@
   function buildHand(p) {
     const g = new THREE.Group();
     const style = p.style || "seconds";
+    const shape = p.handShape || "breguet";
     const L = p.length || (style === "hour" ? 15.5 : style === "minute" ? 19.5 : 4.8);
-    const mat = bluedHandMat();
+    const mat = handMat(p.handColor || "blued");
     const H = style === "seconds" ? 0.1 : 0.14; // 針の厚み(Y方向)
 
     /* 薄い平板シェイプを水平に寢かせて押し出す(下面 y=0)。
@@ -927,6 +958,28 @@
       const hubS = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.4, 24), mat);
       hubS.position.y = 0.22;
       g.add(hubS);
+      return g;
+    }
+
+    // 短針・長針(ドーフィン): 中心稜線を持つ、まっすぐ先細りの面。開いた円環は持たない。
+    if (shape === "dauphine") {
+      const w0d = style === "hour" ? 0.85 : 0.66;
+      const dauphineHalf = (x) => {
+        const t = Math.min(Math.max(x, 0), L) / L;
+        return Math.max(w0d * (1 - t) + 0.03, 0.03);
+      };
+      const blade = extrudeHand(taperShape(0, L, dauphineHalf, 40), H);
+      g.add(blade);
+      // 中央稜線(細い鏡面の峰)で立体感を出す
+      const ridge = extrudeHand(taperShape(0, L * 0.98, (x) => Math.max(dauphineHalf(x) * 0.32, 0.02), 40), H * 1.5);
+      ridge.position.y = H * 0.25;
+      g.add(ridge);
+      const tailLd = style === "hour" ? 2.4 : 3.0;
+      const taild = extrudeHand(taperShape(-tailLd, 0, (x) => w0d * (0.7 + x / tailLd * 0.3) + 0.03, 14), H);
+      g.add(taild);
+      const hubD = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.58, 0.44, 28), mat);
+      hubD.position.y = H / 2 - 0.05;
+      g.add(hubD);
       return g;
     }
 
@@ -1134,24 +1187,37 @@
     return g;
   }
 
-  /* ---- 文字盤テクスチャ(サンレイ + インデックス + スモセコ + ブランド) ---- */
-  function dialTexture(rWorld) {
+  /* ---- 文字盤の仕上げバリエーション(第2章のカスタマイズで選択) ---- */
+  const DIAL_PALETTES = {
+    silver: { c0: "#f2efe6", c1: "#e9e6db", c2: "#d8d4c7", ink: "#242a33", idx: "#1e356f", brand: "#242a33", accent: "#7a6a3c", ray: "rgba(120,116,104,0.035)" },
+    slate:  { c0: "#3a4048", c1: "#2b3037", c2: "#1c2026", ink: "#e7ebf1", idx: "#dfe6f2", brand: "#eef1f6", accent: "#cdac6a", ray: "rgba(255,255,255,0.05)" },
+    navy:   { c0: "#243456", c1: "#1a2744", c2: "#101a30", ink: "#e9edf6", idx: "#f0f3fa", brand: "#eef1f8", accent: "#cdac6a", ray: "rgba(160,190,255,0.06)" }
+  };
+
+  /* ---- 文字盤テクスチャ(サンレイ + インデックス + スモセコ + ブランド) ----
+     ワールド(x,z)→テクセルの写像を CylinderGeometry の上面 UV と厳密に一致させる。
+     これにより 3D 秒針の回転軸(SMALL_SECONDS_CENTER)と印刷されたスモセコ中心が正確に重なる。
+     方位の規約: 12時 = +Z 方向、時刻角 θ(0=12時, 時計回り) に対し dir=(sinθ, cosθ)。 */
+  function dialTexture(rWorld, opts) {
+    const pal = (opts && opts.palette) || DIAL_PALETTES.silver;
     const size = 1024, cv = makeCanvas(size), ctx = cv.getContext("2d");
     const c = size / 2;
-    const dark = "#242a33";        // インデックス・目盛り(白地に映える濃紺グレー)
-    const blued = "#1e356f";       // ブルースチール目盛り
+    // ワールド(x,z) → キャンバス画素。CylinderGeometry 上面 UV は u=z/2r+0.5, v=x/2r+0.5、
+    // かつ CanvasTexture は flipY=true。よって canvas_x=c+(z/r)c, canvas_y=c-(x/r)c。
+    const W2P = (x, z) => [c + (z / rWorld) * c, c - (x / rWorld) * c];
+    const px = (v) => (v / rWorld) * c; // ワールド長さ → 画素長さ
+    const dirAt = (theta) => HAND.worldDir(theta); // 針が指すワールド方向(x,z)
 
-    // 銀白〜アイボリーの地(ごく弱いサンレイ)
-    const base = ctx.createRadialGradient(c, c * 0.9, 30, c, c, c);
-    base.addColorStop(0, "#f2efe6");
-    base.addColorStop(0.6, "#e9e6db");
-    base.addColorStop(1, "#d8d4c7");
+    // 地の色(ごく弱いサンレイ)
+    const base = ctx.createRadialGradient(c, c, 30, c, c, c);
+    base.addColorStop(0, pal.c0);
+    base.addColorStop(0.6, pal.c1);
+    base.addColorStop(1, pal.c2);
     ctx.fillStyle = base;
     ctx.fillRect(0, 0, size, size);
-    // 微弱なサンレイ(粒子感程度)
     for (let i = 0; i < 720; i++) {
       const a = (i / 720) * Math.PI * 2;
-      ctx.strokeStyle = i % 2 ? "rgba(255,255,255,0.05)" : "rgba(120,116,104,0.035)";
+      ctx.strokeStyle = i % 2 ? "rgba(255,255,255,0.05)" : pal.ray;
       ctx.lineWidth = 1.1;
       ctx.beginPath();
       ctx.moveTo(c + Math.cos(a) * 30, c + Math.sin(a) * 30);
@@ -1159,86 +1225,98 @@
       ctx.stroke();
     }
 
-    const R = c * 0.9;
-    // 分目盛り(レイルウェイ) — 細く上品に
+    const Rtrack = rWorld * 0.9;   // 分目盛りの外周(ワールド)
+    const Ridx = rWorld * 0.82;    // インデックスの中心(ワールド)
+    const [scx, scy] = W2P(SMALL_SECONDS_CENTER.x, SMALL_SECONDS_CENTER.z);
+    const scR = px(rWorld * 0.24);  // スモセコ半径(画素)
+
+    // 分目盛り(レイルウェイ)
     for (let m = 0; m < 60; m++) {
-      const a = (m / 60) * Math.PI * 2 - Math.PI / 2;
+      const th = (m / 60) * Math.PI * 2;
+      const dir = dirAt(th);
       const isH = m % 5 === 0;
-      const r1 = R, r2 = R - (isH ? 24 : 12);
-      ctx.strokeStyle = dark;
+      const [x1, y1] = W2P(dir[0] * Rtrack, dir[1] * Rtrack);
+      const [x2, y2] = W2P(dir[0] * (Rtrack - (isH ? 1.15 : 0.55)), dir[1] * (Rtrack - (isH ? 1.15 : 0.55)));
+      if (Math.hypot(x1 - scx, y1 - scy) < scR * 1.15) continue;
+      ctx.strokeStyle = pal.ink;
       ctx.lineWidth = isH ? 3 : 1.1;
-      ctx.beginPath();
-      ctx.moveTo(c + Math.cos(a) * r1, c + Math.sin(a) * r1);
-      ctx.lineTo(c + Math.cos(a) * r2, c + Math.sin(a) * r2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     }
-    // ローマ数字風の細いバーインデックス(ブルースチール)
-    const scx = c + (SMALL_SECONDS_CENTER.x / rWorld) * R;
-    const scy = c + (SMALL_SECONDS_CENTER.z / rWorld) * R; // テクスチャ回転を含めて一致
+
+    // バーインデックス(12本)
     for (let h = 0; h < 12; h++) {
-      const a = (h / 12) * Math.PI * 2 - Math.PI / 2;
-      const rr = R - 38;
-      const px = c + Math.cos(a) * rr, py = c + Math.sin(a) * rr;
-      // スモセコにかかるインデックスは間引く
-      if (Math.hypot(px - scx, py - scy) < R * 0.3) continue;
+      const th = (h / 12) * Math.PI * 2;
+      const dir = dirAt(th);
+      const [ix, iy] = W2P(dir[0] * Ridx, dir[1] * Ridx);
+      if (Math.hypot(ix - scx, iy - scy) < scR * 1.5) continue;
+      const barAng = Math.atan2(iy - c, ix - c); // 半径方向(画素空間)
       ctx.save();
-      ctx.translate(px, py);
-      ctx.rotate(a + Math.PI / 2);
-      ctx.fillStyle = blued;
-      ctx.fillRect(-2.4, -30, 4.8, 34);
+      ctx.translate(ix, iy);
+      ctx.rotate(barAng);
+      ctx.fillStyle = pal.idx;
+      ctx.fillRect(-px(1.6), -2.4, px(3.2), 4.8);
       ctx.restore();
     }
-    // スモールセコンド(共通座標に一致)
-    const sx = scx, sy = scy;
-    ctx.strokeStyle = "rgba(60,66,78,0.55)";
+
+    // スモールセコンド(3D 秒針軸と厳密に一致)
+    ctx.strokeStyle = pal.ink;
+    ctx.globalAlpha = 0.55;
     ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(sx, sy, R * 0.26, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(scx, scy, scR, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = 1;
     for (let s = 0; s < 60; s++) {
-      const a = (s / 60) * Math.PI * 2;
+      const th = (s / 60) * Math.PI * 2;
+      const dir = dirAt(th);
       const isB = s % 15 === 0, isM = s % 5 === 0;
-      const r1 = R * 0.26, r2 = r1 - (isB ? 9 : isM ? 6 : 3);
-      ctx.strokeStyle = dark;
+      const rr1 = rWorld * 0.24, rr2 = rr1 - (isB ? 0.5 : isM ? 0.34 : 0.18);
+      const [tx1, ty1] = W2P(SMALL_SECONDS_CENTER.x + dir[0] * rr1, SMALL_SECONDS_CENTER.z + dir[1] * rr1);
+      const [tx2, ty2] = W2P(SMALL_SECONDS_CENTER.x + dir[0] * rr2, SMALL_SECONDS_CENTER.z + dir[1] * rr2);
+      ctx.strokeStyle = pal.ink;
       ctx.lineWidth = isM ? 1.6 : 0.8;
-      ctx.beginPath();
-      ctx.moveTo(sx + Math.cos(a) * r1, sy + Math.sin(a) * r1);
-      ctx.lineTo(sx + Math.cos(a) * r2, sy + Math.sin(a) * r2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke();
     }
-    // ブランド表記(上品な濃グレー)
-    ctx.fillStyle = dark;
-    ctx.textAlign = "center";
-    ctx.font = "600 28px 'Times New Roman', serif";
-    ctx.fillText("ATELIER  HORLOGER", c, c - R * 0.42);
-    ctx.font = "500 18px 'Times New Roman', serif";
-    ctx.fillStyle = "#7a6a3c";
-    ctx.fillText("Cal.02  Automatic", c, c + R * 0.5);
-    ctx.font = "400 14px 'Helvetica', sans-serif";
-    ctx.fillStyle = "rgba(90,86,74,0.7)";
-    ctx.fillText("21'600 A/h", c, c + R * 0.6);
+
+    // ブランド表記(12時と6時の中間軸に沿って配置)
+    const drawTextAt = (worldX, worldZ, text, font, color, alpha) => {
+      const [tx, ty] = W2P(worldX, worldZ);
+      const ang = Math.atan2(tx - c, -(ty - c)); // 12時方向を上に見せる向き
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.rotate(ang);
+      ctx.fillStyle = color; ctx.globalAlpha = alpha == null ? 1 : alpha;
+      ctx.font = font; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    };
+    const dir12 = dirAt(0), dir6 = dirAt(Math.PI);
+    drawTextAt(dir12[0] * rWorld * 0.42, dir12[1] * rWorld * 0.42, "ATELIER  HORLOGER", "600 26px 'Times New Roman', serif", pal.brand);
+    drawTextAt(dir6[0] * rWorld * 0.5, dir6[1] * rWorld * 0.5, "Cal.02  Automatic", "500 17px 'Times New Roman', serif", pal.accent);
+    drawTextAt(dir6[0] * rWorld * 0.62, dir6[1] * rWorld * 0.62, "21'600 A/h", "400 13px 'Helvetica', sans-serif", pal.accent, 0.75);
+    ctx.globalAlpha = 1;
 
     const tex = new THREE.CanvasTexture(cv);
     tex.encoding = THREE.sRGBEncoding;
     tex.anisotropy = 8;
-    tex.center.set(0.5, 0.5);
-    tex.rotation = Math.PI / 2;  // 12時を上・スモセコを共通座標に合わせる
     return tex;
   }
 
-  /** 文字盤: 銀白/アイボリーのマット面 + ポリッシュ縁 */
+  /** 文字盤: 銀白/アイボリーのマット面 + ポリッシュ縁(色バリエーション対応) */
   function buildDial(p) {
     const g = new THREE.Group();
     const r = p.radius || 22;
+    const pal = DIAL_PALETTES[p.dialStyle] || DIAL_PALETTES.silver;
+    const sideColor = new THREE.Color(pal.c2);
     const face = new THREE.Mesh(
       new THREE.CylinderGeometry(r, r, 0.5, 128),
       new THREE.MeshStandardMaterial({
-        map: dialTexture(r), roughness: 0.62, metalness: 0.15, envMapIntensity: 0.28
+        map: dialTexture(r, { palette: pal }), roughness: 0.62, metalness: 0.15, envMapIntensity: 0.28
       })
     );
     face.position.y = 0.25;
     g.add(face);
-    // 側面(アイボリー)
+    // 側面
     const side = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.5, 128, 1, true),
-      new THREE.MeshStandardMaterial({ color: COLORS.ivory, roughness: 0.6, metalness: 0.1 }));
+      new THREE.MeshStandardMaterial({ color: sideColor, roughness: 0.6, metalness: 0.1 }));
     side.position.y = 0.25;
     g.add(side);
     // 細いポリッシュ縁
@@ -1341,7 +1419,7 @@
     return g;
   }
 
-  /** ベゼル: 鏡面のリング(額縁) */
+  /** ベゼル: 鏡面 or サテンゴールドのリング(額縁)。仕上げバリエーション対応 */
   function buildBezel(p) {
     const outer = p.outer || 30, inner = p.inner || 22.5, h = p.height || 1.6;
     const pts = [
@@ -1352,7 +1430,28 @@
       new THREE.Vector2(outer, 0)
     ];
     const geo = new THREE.LatheGeometry(pts, 96);
-    return new THREE.Mesh(geo, polishMat());
+    let mat;
+    if (p.bezelFinish === "gold") {
+      mat = new THREE.MeshStandardMaterial({ color: 0xc9a85f, roughness: 0.2, metalness: 1.0, envMapIntensity: 0.8 });
+    } else if (p.bezelFinish === "fluted") {
+      // コインエッジ風: 鏡面ベースに、法線に沿った溝を刻む簡易表現
+      mat = new THREE.MeshStandardMaterial({ color: 0xd0d5dd, roughness: 0.16, metalness: 1.0, envMapIntensity: 0.85 });
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(geo, mat));
+      const n = 90;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const rr = (inner + outer) / 2;
+        const flute = new THREE.Mesh(new THREE.BoxGeometry((outer - inner) * 0.9, h * 0.9, 0.5), polishMat());
+        flute.position.set(Math.cos(a) * rr, h * 0.7, Math.sin(a) * rr);
+        flute.rotation.y = -a;
+        g.add(flute);
+      }
+      return g;
+    } else {
+      mat = polishMat();
+    }
+    return new THREE.Mesh(geo, mat);
   }
 
   /** 裏蓋(シースルー): 鋼リング + サファイア窓 */
@@ -1390,31 +1489,48 @@
     return g;
   }
 
-  /** 竜頭: ローレット加工(磨き鋼) + 金のメダリオン */
+  /** 竜頭: ローレット加工 or カボション意匠(磨き鋼)。バリエーション対応 */
   function buildCrown(p) {
     const g = new THREE.Group();
     const r = p.radius || 3.2, w = p.width || 2.6;
     const mat = metal("steel", 0.2, 0.95);
+    const cabochon = p.crownStyle === "cabochon";
     const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.92, w, 48), mat);
     body.rotation.z = Math.PI / 2;
     g.add(body);
-    const n = 26;
+    // ローレット(カボション竜頭では溝を浅く/本数少なめに)
+    const n = cabochon ? 20 : 26;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      const ridge = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, 0.5, 0.28), metal("steel", 0.34));
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, 0.5, cabochon ? 0.2 : 0.28), metal("steel", 0.34));
       ridge.position.set(0, Math.cos(a) * r, Math.sin(a) * r);
       ridge.rotation.x = -a;
       g.add(ridge);
     }
-    // 外側フェイスの金メダリオン
-    const face = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, 0.3, 36), metal("gold", 0.16, 1.0));
-    face.rotation.z = Math.PI / 2;
-    face.position.x = w / 2 + 0.1;
-    g.add(face);
-    const faceRim = new THREE.Mesh(new THREE.TorusGeometry(r * 0.55, 0.08, 8, 36), polishMat());
-    faceRim.rotation.y = Math.PI / 2;
-    faceRim.position.x = w / 2 + 0.24;
-    g.add(faceRim);
+    if (cabochon) {
+      // 外側フェイスに青いカボション(合成スピネル風の丸ドーム)
+      const stone = new THREE.Mesh(
+        new THREE.SphereGeometry(r * 0.5, 28, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshPhysicalMaterial({ color: 0x1f356f, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.05, reflectivity: 0.7, envMapIntensity: 0.9 })
+      );
+      stone.rotation.z = -Math.PI / 2;
+      stone.position.x = w / 2 + 0.05;
+      g.add(stone);
+      const bezelRing = new THREE.Mesh(new THREE.TorusGeometry(r * 0.5, 0.1, 8, 36), metal("gold", 0.16, 1.0));
+      bezelRing.rotation.y = Math.PI / 2;
+      bezelRing.position.x = w / 2 + 0.06;
+      g.add(bezelRing);
+    } else {
+      // 外側フェイスの金メダリオン
+      const face = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, 0.3, 36), metal("gold", 0.16, 1.0));
+      face.rotation.z = Math.PI / 2;
+      face.position.x = w / 2 + 0.1;
+      g.add(face);
+      const faceRim = new THREE.Mesh(new THREE.TorusGeometry(r * 0.55, 0.08, 8, 36), polishMat());
+      faceRim.rotation.y = Math.PI / 2;
+      faceRim.position.x = w / 2 + 0.24;
+      g.add(faceRim);
+    }
     return g;
   }
 
@@ -1458,6 +1574,13 @@
       if (!builder) throw new Error("未知の部品タイプ: " + def.type);
       const group = builder(def.params || {});
       group.userData.partDef = def;
+      // 反転演出中に面の裏側が消えないよう、全マテリアルを両面描画にする。
+      // 透明素材(風防・刻印)は元の描画設定を保ったまま両面化する。
+      group.traverse((o) => {
+        if (!o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m) => { if (m && m.side !== THREE.DoubleSide) m.side = THREE.DoubleSide; });
+      });
       return group;
     },
 
