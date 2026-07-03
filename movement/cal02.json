@@ -871,7 +871,8 @@
         "teeth": 30,
         "spokes": 4,
         "color": "steel",
-        "pivotH": 1.2
+        "pivotH": 1.2,
+        "seatPost": true
       }
     },
     {

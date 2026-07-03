@@ -128,7 +128,6 @@
   <!-- ============ シネマティック演出レイヤー ============ -->
   <div id="cinema-caption"></div>
   <div id="calib-caption"></div>
-  <div id="light-streak"></div>
   <div id="final-caption">
     <div class="fc-rule"></div>
     <div class="fc-brand">ATELIER HORLOGER</div>
@@ -143,28 +142,35 @@
     </div>
   </div>
 
-  <!-- ============ 鑑賞ツールバー(表/裏/拡大/解説/戻る) ============ -->
+  <!-- ============ 鑑賞ツールバー(表/裏/拡大/解説トグル/戻る) ============ -->
   <div id="view-controls" hidden>
     <button type="button" data-view="front">表側</button>
     <button type="button" data-view="back">裏側(ムーブメント)</button>
     <button type="button" data-view="zoom">拡大鑑賞</button>
-    <button type="button" data-view="explain">解説 OFF</button>
+    <button type="button" id="explain-switch" class="vc-switch" data-view="explain" role="switch" aria-checked="false">
+      <span class="vcs-label">解説</span>
+      <span class="vcs-track"><span class="vcs-knob"></span></span>
+      <span class="vcs-state">OFF</span>
+    </button>
     <button type="button" data-view="menu">戻る</button>
   </div>
 
-  <!-- ============ 解説パネル(完成後・解説ON時) ============ -->
-  <aside id="explain-panel" class="glass" hidden>
-    <div class="ep-head">部品解説 <span>Part Guide</span></div>
-    <div class="ep-hint" id="ep-hint">ムーブメントの部品にカーソルを合わせる、またはタップすると解説が表示されます。</div>
-    <div class="ep-body" id="ep-body" hidden>
-      <div class="ep-name-ja" id="ep-name-ja">—</div>
-      <div class="ep-name-en" id="ep-name-en">—</div>
-      <div class="ep-role" id="ep-role">—</div>
+  <!-- ============ 解説ON: ヒント + 点＋線＋説明ボックス ============ -->
+  <div id="explain-hint" hidden>ムーブメントの部品にカーソルを合わせる・タップすると解説が表示されます</div>
+  <div id="explain-callout" hidden>
+    <svg id="ec-svg" width="100%" height="100%"><line id="ec-line" x1="0" y1="0" x2="0" y2="0"></line></svg>
+    <span id="ec-dot"></span>
+    <div id="ec-box" class="glass">
+      <div class="ec-name-ja" id="ec-name-ja">—</div>
+      <div class="ec-name-en" id="ec-name-en">—</div>
+      <div class="ec-sections" id="ec-sections"></div>
     </div>
-  </aside>
+  </div>
 
-  <!-- ============ 風防のさりげない反射 / 流れ星(鑑賞・完成演出時) ============ -->
-  <div id="crystal-glint"></div>
+  <!-- 文字盤・外装を選び直す導線(第2・第3章の組立中に表示) -->
+  <button type="button" id="recustomize-btn" hidden>仕様を選び直す</button>
+
+  <!-- ============ ごく稀な流れ星(完成背景・鑑賞背景の演出) ============ -->
   <div id="shooting-star"></div>
 
   <!-- ============ バージョン情報 ============ -->

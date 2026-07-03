@@ -286,36 +286,36 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
 }
 #custom-overlay[hidden] { display: none; }
 #custom-card {
-  width: min(680px, 94vw); max-height: 88vh; overflow-y: auto;
-  padding: 30px 32px 26px; text-align: center;
+  width: min(680px, 94vw); max-height: 92vh; overflow-y: auto;
+  padding: 22px 30px 20px; text-align: center;
 }
-.custom-title { font-family: var(--font-display); font-size: 24px; letter-spacing: 0.06em; color: var(--text); }
-.custom-sub { font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--gold); margin-top: 6px; margin-bottom: 22px; }
-.custom-group { margin-bottom: 22px; text-align: left; }
+.custom-title { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; color: var(--text); }
+.custom-sub { font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--gold); margin-top: 5px; margin-bottom: 14px; }
+.custom-group { margin-bottom: 13px; text-align: left; }
 .custom-group h4 {
   font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase;
-  color: var(--text-faint); font-weight: 600; margin-bottom: 10px;
+  color: var(--text-faint); font-weight: 600; margin-bottom: 7px;
 }
 .custom-group h4 span { color: var(--text-dim); margin-left: 8px; letter-spacing: 0.06em; text-transform: none; }
-.custom-opts { display: flex; flex-wrap: wrap; gap: 10px; }
+.custom-opts { display: flex; flex-wrap: wrap; gap: 8px; }
 .custom-opt {
-  flex: 1 1 120px; min-width: 110px; cursor: pointer;
-  padding: 12px 12px 11px; border-radius: 13px;
+  flex: 1 1 118px; min-width: 104px; cursor: pointer;
+  padding: 9px 10px 8px; border-radius: 12px;
   background: linear-gradient(180deg, rgba(30,31,37,0.6), rgba(16,17,21,0.6));
   border: 1px solid var(--line); transition: all 0.3s var(--ease);
-  display: flex; flex-direction: column; align-items: center; gap: 9px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
 .custom-opt:hover { border-color: rgba(205,172,106,0.4); transform: translateY(-2px); }
 .custom-opt.sel { border-color: var(--gold); background: rgba(205,172,106,0.14); box-shadow: 0 0 20px rgba(205,172,106,0.2); }
-.custom-swatch { width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.18); flex: 0 0 auto; }
+.custom-swatch { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.18); flex: 0 0 auto; }
 .custom-opt .co-name { font-size: 12px; font-weight: 600; color: var(--text); }
 .custom-opt .co-en { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint); }
 #custom-confirm {
-  appearance: none; margin-top: 6px; cursor: pointer;
+  appearance: none; margin-top: 4px; cursor: pointer;
   border: 1px solid rgba(205, 172, 106, 0.5);
   background: linear-gradient(180deg, rgba(205,172,106,0.24), rgba(205,172,106,0.08));
   color: var(--gold); font-family: var(--font-ui); font-size: 13px; font-weight: 600;
-  letter-spacing: 0.1em; padding: 12px 30px; border-radius: 999px;
+  letter-spacing: 0.1em; padding: 10px 30px; border-radius: 999px;
   transition: all 0.3s var(--ease);
 }
 #custom-confirm:hover { background: linear-gradient(180deg, rgba(205,172,106,0.34), rgba(205,172,106,0.16)); box-shadow: 0 0 26px rgba(205,172,106,0.28); }
@@ -493,18 +493,7 @@ body.cinema::before {
 }
 @keyframes cinema-fade { from { opacity: 0; } to { opacity: 1; } }
 
-/* 金属エッジを走る光 */
-#light-streak {
-  position: fixed; inset: 0; z-index: 58; pointer-events: none; opacity: 0;
-  background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,0.16) 49%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.16) 51%, transparent 58%);
-  transform: translateX(-60%);
-}
-#light-streak.run { animation: streak 1.25s var(--ease); }
-@keyframes streak {
-  0%   { opacity: 0; transform: translateX(-60%); }
-  25%  { opacity: 1; }
-  100% { opacity: 0; transform: translateX(60%); }
-}
+/* (削除) 左から右へ流れる光の帯演出は廃止 — 静かな完成背景のため
 
 /* 最終キャプション "Cal.02 Automatic" */
 #final-caption {
@@ -737,76 +726,123 @@ body.completed-ui #cta-btn { display: none; }
 body.cinema #version-badge { opacity: 0.5; }
 
 /* ============================================================
-   解説ONの部品ガイドパネル(完成後)
+   解説ON/OFF トグルスイッチ(鑑賞ツールバー内)
    ============================================================ */
-#explain-panel {
-  position: fixed; right: 22px; top: 122px; width: 264px; z-index: 82;
-  padding: 20px; transition: opacity 0.4s var(--ease);
+#view-controls .vc-switch {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 8px 16px 8px 14px;
 }
-#explain-panel[hidden] { display: none; }
-.ep-head {
-  font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase;
-  color: var(--text-faint); font-weight: 600; margin-bottom: 12px;
+.vc-switch .vcs-label { font-size: 12px; letter-spacing: 0.08em; }
+.vc-switch .vcs-track {
+  position: relative; width: 34px; height: 18px; border-radius: 999px;
+  background: rgba(255,255,255,0.12); border: 1px solid var(--line-strong);
+  transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
 }
-.ep-head span { color: var(--accent); opacity: 0.8; margin-left: 4px; }
-.ep-hint { font-size: 11.5px; line-height: 1.8; color: var(--text-dim); }
-.ep-name-ja { font-size: 21px; font-weight: 600; letter-spacing: 0.03em; color: var(--text); margin-bottom: 3px; }
-.ep-name-en {
-  font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
-  color: var(--accent); margin-bottom: 14px;
+.vc-switch .vcs-knob {
+  position: absolute; top: 1px; left: 1px; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--text-dim);
+  transition: transform 0.28s var(--ease), background 0.28s var(--ease);
 }
-.ep-role { font-size: 13px; line-height: 1.8; color: var(--text); }
-@media (max-width: 860px) {
-  #explain-panel {
-    right: 12px; left: 12px; top: auto; bottom: 92px; width: auto;
-    padding: 14px 16px;
-  }
-  .ep-name-ja { font-size: 18px; }
+.vc-switch .vcs-state {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
+  color: var(--text-faint); min-width: 26px; text-align: left;
 }
-
-/* 鑑賞ツールバーの解説トグルが ON のときの見え方 */
-#view-controls button[data-view="explain"].on {
+#view-controls .vc-switch[aria-checked="true"] {
   border-color: rgba(111, 178, 255, 0.6); color: var(--accent);
   background: rgba(111, 178, 255, 0.12);
 }
+.vc-switch[aria-checked="true"] .vcs-track {
+  background: rgba(111, 178, 255, 0.5); border-color: rgba(111, 178, 255, 0.7);
+}
+.vc-switch[aria-checked="true"] .vcs-knob { transform: translateX(16px); background: #eaf3ff; }
+.vc-switch[aria-checked="true"] .vcs-state { color: var(--accent); }
+
+/* 解説ON時の小さなヒント(上部中央) */
+#explain-hint {
+  position: fixed; top: 22px; left: 50%; transform: translateX(-50%); z-index: 84;
+  font-size: 11px; letter-spacing: 0.1em; color: var(--text-dim);
+  padding: 8px 18px; border-radius: 999px; pointer-events: none;
+  background: rgba(9,10,14,0.7); border: 1px solid var(--line-strong);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+#explain-hint[hidden] { display: none; }
 
 /* ============================================================
-   風防の上品な反射(たまに斜めへすっと入る細い光・鑑賞時のみ)
+   解説: 点＋線＋説明ボックス(完成後・鑑賞中)
    ============================================================ */
-#crystal-glint {
-  position: fixed; inset: 0; z-index: 57; pointer-events: none; opacity: 0;
-  background: linear-gradient(118deg,
-    transparent 44%,
-    rgba(255,255,255,0.06) 48.5%,
-    rgba(255,255,255,0.22) 50%,
-    rgba(255,255,255,0.06) 51.5%,
-    transparent 56%);
-  transform: translateX(-55%);
+#explain-callout { position: fixed; inset: 0; z-index: 83; pointer-events: none; }
+#explain-callout[hidden] { display: none; }
+#ec-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+#ec-line {
+  stroke: rgba(255, 255, 255, 0.75); stroke-width: 1.2;
 }
-#crystal-glint.run { animation: crystal-glint 1.8s cubic-bezier(0.33, 0, 0.2, 1); }
-@keyframes crystal-glint {
-  0%   { opacity: 0; transform: translateX(-55%); }
-  30%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; transform: translateX(55%); }
+#ec-dot {
+  position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px;
+  border-radius: 50%; background: #8fc4ff;
+  box-shadow: 0 0 0 3px rgba(143, 196, 255, 0.22), 0 0 8px rgba(143,196,255,0.6);
+}
+#ec-box {
+  position: absolute; width: 258px; max-width: 72vw; padding: 16px 18px;
+  border-radius: 14px; border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(9, 11, 16, 0.82);
+  -webkit-backdrop-filter: blur(20px) saturate(150%); backdrop-filter: blur(20px) saturate(150%);
+}
+.ec-name-ja { font-size: 19px; font-weight: 600; letter-spacing: 0.03em; color: var(--text); margin-bottom: 2px; }
+.ec-name-en {
+  font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 12px;
+}
+.ec-sections { max-height: 46vh; overflow-y: auto; scrollbar-width: thin; }
+.ec-sections .ec-sec { margin-bottom: 10px; }
+.ec-sections .ec-sec:last-child { margin-bottom: 0; }
+.ec-sections .ec-sec h5 {
+  font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--text-faint); font-weight: 600; margin-bottom: 3px;
+}
+.ec-sections .ec-sec p { font-size: 12px; line-height: 1.7; color: var(--text-dim); }
+.ec-sections .ec-sec.role p { color: var(--text); }
+@media (max-width: 860px) {
+  #ec-box { width: 220px; padding: 13px 15px; }
+  .ec-name-ja { font-size: 17px; }
+  .ec-sections { max-height: 38vh; }
 }
 
 /* ============================================================
    ごく稀な流れ星(完成背景・鑑賞背景の演出)
+   ・小さく・細く・控えめ。発生位置・角度・長さ・間隔はJSでランダム。
+   ・周辺にだけ出し、時計本体の前面を横切らない。
    ============================================================ */
 #shooting-star {
-  position: fixed; z-index: 54; pointer-events: none; opacity: 0;
-  width: 160px; height: 1.5px; left: 8%; top: 16%;
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(214,226,245,0.9) 88%, #ffffff 100%);
-  border-radius: 2px; transform: rotate(24deg) translateX(-40px);
-  filter: drop-shadow(0 0 4px rgba(200,220,255,0.7));
+  position: fixed; z-index: 53; pointer-events: none; opacity: 0;
+  width: 70px; height: 1px; left: 12%; top: 14%;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(214,226,245,0.7) 82%, rgba(255,255,255,0.9) 100%);
+  border-radius: 2px;
+  transform: rotate(var(--star-ang, 26deg)) translateX(0);
+  filter: drop-shadow(0 0 2px rgba(200,220,255,0.5));
 }
-#shooting-star.run { animation: shooting-star 1.15s ease-in forwards; }
+#shooting-star.run { animation: shooting-star 0.9s ease-in forwards; }
 @keyframes shooting-star {
-  0%   { opacity: 0; transform: rotate(24deg) translate(-40px, -20px) scaleX(0.4); }
-  12%  { opacity: 0.9; }
-  70%  { opacity: 0.9; }
-  100% { opacity: 0; transform: rotate(24deg) translate(360px, 160px) scaleX(1); }
+  0%   { opacity: 0; transform: rotate(var(--star-ang,26deg)) translate(0, 0) scaleX(0.3); }
+  18%  { opacity: 0.6; }
+  60%  { opacity: 0.5; }
+  100% { opacity: 0; transform: rotate(var(--star-ang,26deg)) translate(var(--star-dx,90px), var(--star-dy,44px)) scaleX(1); }
 }
 /* 流れ星・反射は鑑賞/完成演出中のみ意味を持つ */
 body:not(.cinema) #shooting-star { display: none; }
+
+/* ============================================================
+   仕様を選び直す導線ボタン(第2・第3章の組立中)
+   ============================================================ */
+#recustomize-btn {
+  position: fixed; top: 108px; left: 50%; transform: translateX(-50%);
+  z-index: 30; appearance: none; cursor: pointer;
+  border: 1px solid rgba(205, 172, 106, 0.5);
+  background: linear-gradient(180deg, rgba(205,172,106,0.18), rgba(205,172,106,0.06));
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  color: var(--gold); font-family: var(--font-ui);
+  font-size: 12px; letter-spacing: 0.1em; padding: 8px 20px; border-radius: 999px;
+  transition: all 0.3s var(--ease);
+}
+#recustomize-btn:hover { background: linear-gradient(180deg, rgba(205,172,106,0.3), rgba(205,172,106,0.12)); box-shadow: 0 0 22px rgba(205,172,106,0.24); }
+#recustomize-btn[hidden] { display: none; }
+@media (max-width: 860px) { #recustomize-btn { top: 96px; font-size: 11px; padding: 7px 14px; } }

@@ -574,6 +574,21 @@
     const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, pivotH, 12), metal("steel", 0.15));
     pivot.position.y = pivotH / 2;
     g.add(pivot);
+
+    // 保持構造(日の裏車など): 下方へ伸びる軸 + 位置決めの座。「置いているだけ」に見えないようにする。
+    if (p.seatPost) {
+      const down = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.24, 3.2, 14), metal("steel", 0.16));
+      down.position.y = -1.5;
+      g.add(down);
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.4, r * 0.46, 0.55, 24), polishMat());
+      collar.position.y = -0.1;
+      g.add(collar);
+      // 下軸受(ルビー風の小さな穴石)
+      const jseat = makeJewel(0.0, 0.36);
+      jseat.rotation.x = Math.PI;
+      jseat.position.y = -0.55;
+      g.add(jseat);
+    }
     return g;
   }
 
@@ -1439,27 +1454,31 @@
   function buildCrystal(p) {
     const g = new THREE.Group();
     const r = p.radius || 23;
-    // ほぼ無色・低反射のサファイア表現(正面からは透明に近い)
-    const glass = new THREE.MeshPhysicalMaterial({
-      color: 0xeef3fa, transparent: true, opacity: 0.13,
-      roughness: 0.015, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.03,
-      reflectivity: 0.22, envMapIntensity: 0.45, side: THREE.DoubleSide, depthWrite: false
+    // 中央の面: ほぼ透明で反射を極力抜く(中央の白い曇りを出さない)
+    const clearGlass = new THREE.MeshPhysicalMaterial({
+      color: 0xeef4fb, transparent: true, opacity: 0.06,
+      roughness: 0.02, metalness: 0.0, clearcoat: 0.3, clearcoatRoughness: 0.08,
+      reflectivity: 0.06, envMapIntensity: 0.12, side: THREE.DoubleSide, depthWrite: false
     });
-    // 上面(平ら) — ごくわずかだけ膨らませた極浅の球冠(半径を大きく取り、ほぼ平面)
-    const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(r * 6.0, 96, 24, 0, Math.PI * 2, 0, 0.055), glass
-    );
-    dome.position.y = 0.62 - r * 6.0 * Math.cos(0.055);
-    g.add(dome);
-    // 薄い立ち上がり縁(側面): 傾いたときにだけ細い反射が出る
-    const edge = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.62, 96, 1, true), glass);
-    edge.position.y = 0.31;
+    // 縁・側面: グレージングの反射を少しだけ許す(傾いたときに細い光)
+    const edgeGlass = new THREE.MeshPhysicalMaterial({
+      color: 0xeef4fb, transparent: true, opacity: 0.16,
+      roughness: 0.02, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.05,
+      reflectivity: 0.28, envMapIntensity: 0.5, side: THREE.DoubleSide, depthWrite: false
+    });
+    // 上面: 平らな薄い円板(大きなドームを廃止 → 中央に反射が集まらない)
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.1, 96), clearGlass);
+    top.position.y = 0.6;
+    g.add(top);
+    // 側面(立ち上がり縁): 傾いたときにだけ細い反射が出る
+    const edge = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.6, 96, 1, true), edgeGlass);
+    edge.position.y = 0.3;
     g.add(edge);
     // 外周の極細ポリッシュリング(縁のハイライトを控えめに)
     const rim = new THREE.Mesh(new THREE.TorusGeometry(r, 0.05, 8, 120),
-      new THREE.MeshStandardMaterial({ color: 0xd6dbe4, roughness: 0.2, metalness: 1.0, envMapIntensity: 0.4 }));
+      new THREE.MeshStandardMaterial({ color: 0xd6dbe4, roughness: 0.22, metalness: 1.0, envMapIntensity: 0.4 }));
     rim.rotation.x = Math.PI / 2;
-    rim.position.y = 0.62;
+    rim.position.y = 0.6;
     g.add(rim);
     return g;
   }
@@ -1484,20 +1503,26 @@
     if (p.bezelFinish === "gold") {
       mat = new THREE.MeshStandardMaterial({ color: 0xc9a85f, roughness: 0.2, metalness: 1.0, envMapIntensity: 0.8 });
     } else if (p.bezelFinish === "fluted") {
-      // コインエッジ風: 鏡面ベースに、法線に沿った溝を刻む簡易表現
-      mat = new THREE.MeshStandardMaterial({ color: 0xd0d5dd, roughness: 0.16, metalness: 1.0, envMapIntensity: 0.85 });
-      const g = new THREE.Group();
-      g.add(new THREE.Mesh(geo, mat));
-      const n = 90;
+      // コインエッジ(フルーテッド): 一体成形の金属に見えるよう、斜面に密に細い溝を刻む。
+      // 「棒を貼り付けた」印象をなくす。
+      const gg = new THREE.Group();
+      const baseMat = new THREE.MeshStandardMaterial({ color: 0xcdd2da, roughness: 0.14, metalness: 1.0, envMapIntensity: 0.85 });
+      gg.add(new THREE.Mesh(geo, baseMat));
+      const ridgeMat = new THREE.MeshStandardMaterial({ color: 0xe6eaf0, roughness: 0.1, metalness: 1.0, envMapIntensity: 0.95 });
+      const n = 150;
+      const rr = (inner + outer) / 2;
+      const radialLen = (outer - inner) * 0.94;
+      const tangW = (2 * Math.PI * rr / n) * 0.6;   // 隙を残して溝の影を作る
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
-        const rr = (inner + outer) / 2;
-        const flute = new THREE.Mesh(new THREE.BoxGeometry((outer - inner) * 0.9, h * 0.9, 0.5), polishMat());
+        // 斜面になじませて密着させる細かいくさび(リッジが連なって見える)
+        const flute = new THREE.Mesh(new THREE.BoxGeometry(radialLen, h * 0.5, tangW), ridgeMat);
         flute.position.set(Math.cos(a) * rr, h * 0.7, Math.sin(a) * rr);
         flute.rotation.y = -a;
-        g.add(flute);
+        flute.rotation.z = 0.16;
+        gg.add(flute);
       }
-      return g;
+      return gg;
     } else {
       mat = polishMat();
     }

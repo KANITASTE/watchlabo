@@ -301,6 +301,16 @@
       return hits.length ? hits[0] : null;
     }
 
+    /** ワールド座標 → 画面ピクセル座標(解説の点+線の描画に使用) */
+    worldToScreen(vec) {
+      const p = vec.clone().project(this.camera);
+      return {
+        x: (p.x * 0.5 + 0.5) * window.innerWidth,
+        y: (-p.y * 0.5 + 0.5) * window.innerHeight,
+        visible: p.z < 1 && p.z > -1
+      };
+    }
+
     /* ------------------------------------------------------------
        メインループ
        ------------------------------------------------------------ */

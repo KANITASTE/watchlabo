@@ -83,12 +83,11 @@
 
       this._buildTargetRing();
       this._buildOilRing();
-      this._buildExplainHighlight();
 
       /* ---- 完成後の解説ON / 鑑賞演出 ---- */
       this.explainOn = false;
-      this._glintT = 0; this._glintNext = 6 + Math.random() * 6;
-      this._starT = 0; this._starNext = 14 + Math.random() * 14;
+      this._explainTarget = null;              // {group, def, worldPos}
+      this._starT = 0; this._starNext = 12 + Math.random() * 14;
     }
 
     /* ============================================================
@@ -331,36 +330,60 @@
       this._updateRingTarget();
       this._updateOilGuide();
       this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
+      // 文字盤/外装を選び直す導線(第2・第3章の組立中のみ)
+      this.ui.showRecustomize(
+        !this.busy && this.appState === AppState.ASSEMBLING &&
+          (this.activeChapter === "dial" || this.activeChapter === "case"),
+        () => this.reopenCustomizer()
+      );
+    }
+
+    /** 現在の章に応じたカスタマイズを開き直す(選択状態は保持)。工程は進めない。 */
+    reopenCustomizer() {
+      if (this.busy) return;
+      if (this.activeChapter === "dial") {
+        this._openDialCustomizer(() => { this._refresh(); });
+      } else if (this.activeChapter === "case") {
+        this._openCaseCustomizer(() => { this._refresh(); });
+      }
     }
 
     /* ============================================================
-       解説ON: 部品ハイライトの輪(完成後の鑑賞中のみ)
+       解説ON: 点＋線＋説明ボックス(完成後の鑑賞中のみ)
        ============================================================ */
-    _buildExplainHighlight() {
-      const g = new THREE.Group();
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.88, 1.0, 72),
-        new THREE.MeshBasicMaterial({
-          color: 0x6fb2ff, transparent: true, opacity: 0.55,
-          side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
-        })
-      );
-      ring.rotation.x = -Math.PI / 2;
-      g.add(ring);
-      g.renderOrder = 998;
-      g.visible = false;
-      this.explainRing = g;
-      this.explainRingMesh = ring;
-      this.sceneMgr.scene.add(g);
+    /** 現在の解説対象を設定し、説明ボックスの内容を更新する */
+    _setExplainTarget(group, def) {
+      this._explainTarget = { group, def, worldPos: new THREE.Vector3() };
+      group.getWorldPosition(this._explainTarget.worldPos);
+      this.ui.setCalloutContent(def);
+      this.ui.showExplainHint(false);
+      this._updateCalloutPos();
     }
 
-    _highlightPart(group, def) {
-      const pos = new THREE.Vector3();
-      group.getWorldPosition(pos);
-      const r = (def.hitRadius || 5) * 1.08;
-      this.explainRing.position.set(pos.x, pos.y + 0.5, pos.z);
-      this.explainRing.scale.set(r, r, 1);
-      this.explainRing.visible = true;
+    _clearExplainTarget() {
+      this._explainTarget = null;
+      this.ui.hideCallout();
+      if (this.explainOn) this.ui.showExplainHint(true);
+    }
+
+    /** 対象部品の画面位置を求め、点・線・ボックス位置を更新する(毎フレーム) */
+    _updateCalloutPos() {
+      const t = this._explainTarget;
+      if (!t) return;
+      t.group.getWorldPosition(t.worldPos);
+      const s = this.sceneMgr.worldToScreen(t.worldPos);
+      const W = window.innerWidth, H = window.innerHeight;
+      const dot = { x: s.x, y: s.y };
+      const sz = this.ui.calloutBoxSize();
+      const margin = 24;
+      // 説明枠は時計の外(画面端の余白)へ固定する。部品が右寄りなら右端、左寄りなら左端。
+      const toRight = s.x >= W * 0.5;
+      const bx = toRight ? (W - sz.w - margin) : margin;
+      let by = s.y - sz.h * 0.5;
+      by = Math.max(70, Math.min(H - sz.h - 12, by));
+      // 線は点 → ボックスの内側の辺の中央へ(細い直線)
+      const line2 = { x: toRight ? bx : bx + sz.w, y: Math.max(by + 18, Math.min(by + sz.h - 18, s.y)) };
+      this.ui.positionCallout(dot, { x: bx, y: by }, line2);
     }
 
     /** 解説ON/OFF 切替(鑑賞中のみ) */
@@ -373,26 +396,26 @@
         this.sceneMgr.setHoverTargets(groups);
         this.sceneMgr.setClickTargets(groups);
         this.sceneMgr.enableHover(true);
-        this.ui.showExplainPanel();
-        this.ui.setExplainPart(null);
+        this.ui.showExplainHint(true);
+        this.ui.hideCallout();
+        this._explainTarget = null;
       } else {
         this.sceneMgr.enableHover(false);
         this.sceneMgr.setClickTargets([]);
-        this.explainRing.visible = false;
-        this.ui.hideExplainPanel();
+        this.ui.showExplainHint(false);
+        this.ui.hideCallout();
+        this._explainTarget = null;
       }
     }
 
-    /** ホバー(PC): 部品をハイライトして解説を表示。1つずつだけ反応させる。 */
+    /** ホバー(PC): 部品に点＋線＋ボックスで解説を表示。1つずつだけ反応させる。 */
     _onExplainHover(group) {
       if (!this.explainOn || this.appState !== AppState.VIEWING) return;
       const def = group && group.userData && group.userData.partDef;
       if (def && this.placed.has(def.id)) {
-        this._highlightPart(group, def);
-        this.ui.setExplainPart(def);
+        if (!this._explainTarget || this._explainTarget.def.id !== def.id) this._setExplainTarget(group, def);
       } else {
-        this.explainRing.visible = false;
-        this.ui.setExplainPart(null);
+        this._clearExplainTarget();
       }
     }
 
@@ -405,7 +428,7 @@
         if (this.explainOn) {
           const part = this.parts.find((p) => p.id === partId);
           const g = this.groups[partId];
-          if (part) { this.ui.setExplainPart(part); if (g) this._highlightPart(g, part); }
+          if (part && g) this._setExplainTarget(g, part);
         }
         return;
       }
@@ -737,9 +760,10 @@
       // 解説ONは鑑賞ごとにリセットしておく
       this.explainOn = false;
       this.ui.setExplainButton(false);
-      this.ui.hideExplainPanel();
+      this.ui.showExplainHint(false);
+      this.ui.hideCallout();
       this.sceneMgr.enableHover(false);
-      if (this.explainRing) this.explainRing.visible = false;
+      this._explainTarget = null;
       const cam = this.sceneMgr;
       this.ui.enterCinemaMode();            // 通常UIは隠す
       this.ui.hideFinalCaption();
@@ -790,8 +814,9 @@
       this.explainOn = false;
       this.sceneMgr.enableHover(false);
       this.ui.setExplainButton(false);
-      this.ui.hideExplainPanel();
-      if (this.explainRing) this.explainRing.visible = false;
+      this.ui.showExplainHint(false);
+      this.ui.hideCallout();
+      this._explainTarget = null;
       this.watch.rotation.x = 0;
       this.ui.hideViewControls();
       this.ui.hideFinalCaption();
@@ -888,7 +913,6 @@
         this.completed = true;
         this.appState = AppState.COMPLETED;
         this._save();
-        this.ui.lightStreak();
         this.ui.showCalibrationCaption("CALIBRATED TO LOCAL TIME");
         clearTimeout(this._finalCapTimer);
         this._finalCapTimer = setTimeout(() => {
@@ -1248,19 +1272,16 @@
       // 完成シネマティック
       if (this.finalState) this._updateFinal(dt);
 
-      // 鑑賞/完成演出中の上品な演出(風防の反射 / ごく稀な流れ星)
+      // 鑑賞/完成演出中の上品な演出(ごく稀な流れ星のみ。画面をなぞる光帯は廃止済み)
       if (this.appState === AppState.VIEWING || this.appState === AppState.CINEMATIC || this.finalState) {
-        this._glintT += dt;
-        if (this._glintT >= this._glintNext) {
-          this._glintT = 0; this._glintNext = 7 + Math.random() * 9;
-          this.ui.triggerCrystalGlint();
-        }
         this._starT += dt;
         if (this._starT >= this._starNext) {
-          this._starT = 0; this._starNext = 18 + Math.random() * 22;
+          this._starT = 0; this._starNext = 20 + Math.random() * 26;   // 間隔もランダム・長め
           this.ui.triggerShootingStar();
         }
       }
+      // 解説ONの点＋線＋ボックスを部品に追従させる
+      if (this.explainOn && this._explainTarget) this._updateCalloutPos();
     }
 
     _updateRunning(dt, t) {

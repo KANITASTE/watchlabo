@@ -42,14 +42,16 @@
         completedControls: $("completed-controls"),
         viewControls: $("view-controls"),
         zoomBtn: document.querySelector('#view-controls [data-view="zoom"]'),
-        explainBtn: document.querySelector('#view-controls [data-view="explain"]'),
-        explainPanel: $("explain-panel"),
-        epHint: $("ep-hint"),
-        epBody: $("ep-body"),
-        epNameJa: $("ep-name-ja"),
-        epNameEn: $("ep-name-en"),
-        epRole: $("ep-role"),
-        crystalGlint: $("crystal-glint"),
+        explainBtn: $("explain-switch"),
+        explainHint: $("explain-hint"),
+        recustomizeBtn: $("recustomize-btn"),
+        callout: $("explain-callout"),
+        ecLine: $("ec-line"),
+        ecDot: $("ec-dot"),
+        ecBox: $("ec-box"),
+        ecNameJa: $("ec-name-ja"),
+        ecNameEn: $("ec-name-en"),
+        ecSections: $("ec-sections"),
         shootingStar: $("shooting-star"),
         toolGuide: $("tool-guide"),
         rsMain: $("rs-main"),
@@ -455,42 +457,78 @@
     }
 
     /* ------------------------------------------------------------
-       解説ON: 部品ガイドパネル / トグル表示
+       解説ON: トグルスイッチ / ヒント / 点＋線＋説明ボックス
        ------------------------------------------------------------ */
     setExplainButton(on) {
       if (!this.el.explainBtn) return;
-      this.el.explainBtn.textContent = on ? "解説 ON" : "解説 OFF";
-      this.el.explainBtn.classList.toggle("on", !!on);
+      this.el.explainBtn.setAttribute("aria-checked", on ? "true" : "false");
+      const st = this.el.explainBtn.querySelector(".vcs-state");
+      if (st) st.textContent = on ? "ON" : "OFF";
     }
-    showExplainPanel() { if (this.el.explainPanel) this.el.explainPanel.hidden = false; }
-    hideExplainPanel() { if (this.el.explainPanel) this.el.explainPanel.hidden = true; }
-    /** 部品の解説を表示(partがnullならヒントに戻す) */
-    setExplainPart(part) {
-      if (!this.el.explainPanel) return;
-      if (!part) {
-        if (this.el.epHint) this.el.epHint.style.display = "";
-        if (this.el.epBody) this.el.epBody.hidden = true;
-        return;
-      }
-      if (this.el.epHint) this.el.epHint.style.display = "none";
-      if (this.el.epBody) this.el.epBody.hidden = false;
-      this.el.epNameJa.textContent = part.name;
-      this.el.epNameEn.textContent = part.nameEn || "";
-      this.el.epRole.textContent = part.role || part.description || "";
+    showExplainHint(on) { if (this.el.explainHint) this.el.explainHint.hidden = !on; }
+
+    /** 説明ボックスの内容をセット(部品が変わったときだけ呼ぶ) */
+    setCalloutContent(part) {
+      if (!this.el.ecBox) return;
+      this.el.ecNameJa.textContent = part.name;
+      this.el.ecNameEn.textContent = part.nameEn || "";
+      const secs = [];
+      if (part.role) secs.push(["役割", part.role, "role"]);
+      if (part.relation) secs.push(["伝達・関係", part.relation, ""]);
+      if (part.description) secs.push(["解説", part.description, ""]);
+      if (part.trivia) secs.push(["豆知識", part.trivia, ""]);
+      this.el.ecSections.innerHTML = secs
+        .map(([h, , cls]) => '<div class="ec-sec ' + cls + '"><h5></h5><p></p></div>').join("");
+      const nodes = this.el.ecSections.querySelectorAll(".ec-sec");
+      secs.forEach((s, i) => {
+        nodes[i].querySelector("h5").textContent = s[0];
+        nodes[i].querySelector("p").textContent = s[1];
+      });
+    }
+    /** 点・線・ボックスの位置を更新(毎フレーム) */
+    positionCallout(dot, box, line2) {
+      if (!this.el.callout) return;
+      if (this.el.callout.hidden) this.el.callout.hidden = false;
+      this.el.ecDot.style.left = dot.x + "px";
+      this.el.ecDot.style.top = dot.y + "px";
+      this.el.ecBox.style.left = box.x + "px";
+      this.el.ecBox.style.top = box.y + "px";
+      this.el.ecLine.setAttribute("x1", dot.x);
+      this.el.ecLine.setAttribute("y1", dot.y);
+      this.el.ecLine.setAttribute("x2", line2.x);
+      this.el.ecLine.setAttribute("y2", line2.y);
+    }
+    /** 説明ボックスの実寸(線の接続先計算用) */
+    calloutBoxSize() {
+      const b = this.el.ecBox;
+      return b ? { w: b.offsetWidth || 258, h: b.offsetHeight || 160 } : { w: 258, h: 160 };
+    }
+    hideCallout() { if (this.el.callout) this.el.callout.hidden = true; }
+
+    /** レスポンシブなボタン(仕様を選び直す) */
+    showRecustomize(on, onClick) {
+      const b = this.el.recustomizeBtn;
+      if (!b) return;
+      b.hidden = !on;
+      if (on && onClick) b.onclick = onClick;
     }
 
-    /** 風防の上品な反射(斜めにすっと入る細い光) */
-    triggerCrystalGlint() {
-      const el = this.el.crystalGlint;
-      if (!el) return;
-      el.classList.remove("run"); void el.offsetWidth; el.classList.add("run");
-    }
-    /** ごく稀な流れ星 */
+    /** ごく稀な流れ星(小さく・細く・周辺・ランダム) */
     triggerShootingStar() {
       const el = this.el.shootingStar;
       if (!el) return;
-      el.style.left = (4 + Math.random() * 30) + "%";
-      el.style.top = (8 + Math.random() * 26) + "%";
+      const ang = 12 + Math.random() * 28;
+      const len = 46 + Math.random() * 46;
+      const dx = 70 + Math.random() * 80, dy = 26 + Math.random() * 40;
+      // 周辺(上部・左右端)にだけ出し、中央(時計)を横切らない
+      let leftPct, topPct;
+      if (Math.random() < 0.5) { leftPct = 6 + Math.random() * 22; topPct = 6 + Math.random() * 22; }
+      else { leftPct = 64 + Math.random() * 26; topPct = 8 + Math.random() * 22; }
+      el.style.left = leftPct + "%"; el.style.top = topPct + "%";
+      el.style.width = len + "px";
+      el.style.setProperty("--star-ang", ang + "deg");
+      el.style.setProperty("--star-dx", dx + "px");
+      el.style.setProperty("--star-dy", dy + "px");
       el.classList.remove("run"); void el.offsetWidth; el.classList.add("run");
     }
   }
