@@ -63,7 +63,7 @@
 
       /* ---- カスタマイズ ---- */
       this.custom = Object.assign(
-        { dial: "silver", dialIndex: "bar", handColor: "blued", handShape: "breguet", bezel: "polished", crown: "fluted" },
+        { dial: "silver", handColor: "blued", handShape: "breguet", bezel: "polished", crown: "fluted" },
         this._restoreCustom()
       );
 
@@ -83,12 +83,6 @@
 
       this._buildTargetRing();
       this._buildOilRing();
-      this._buildExplainHighlight();
-
-      /* ---- 完成後の解説ON / 鑑賞演出 ---- */
-      this.explainOn = false;
-      this._glintT = 0; this._glintNext = 6 + Math.random() * 6;
-      this._starT = 0; this._starNext = 14 + Math.random() * 14;
     }
 
     /* ============================================================
@@ -120,7 +114,6 @@
       this.ui.onCompletedAction = (act) => this.completedAction(act);
       this.sceneMgr.onPartClick((group) => this.handlePartClick(group.userData.partDef.id));
       this.sceneMgr.onOilClick((isHit) => this.handleOilClick(isHit));
-      this.sceneMgr.onHover((g) => this._onExplainHover(g));
       this.sceneMgr.onTick((dt, t) => this.update(dt, t));
 
       this.ui.setMode(this.mode);
@@ -224,16 +217,16 @@
        ============================================================ */
     _buildOilRing() {
       const g = new THREE.Group();
-      // 外側の太めの輪(はっきりした青 — 正しい注油点だとすぐ分かる)
+      // 外側の細い輪
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.72, 1.0, 72),
-        new THREE.MeshBasicMaterial({ color: 0x2f86ff, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+        new THREE.RingGeometry(0.86, 1.0, 64),
+        new THREE.MeshBasicMaterial({ color: 0x4f9be6, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
       );
       ring.rotation.x = -Math.PI / 2;
-      // 中心の小さな青点(注油位置の芯)
+      // 中心の小さな点(注油位置の芯)
       const dot = new THREE.Mesh(
-        new THREE.CircleGeometry(0.22, 28),
-        new THREE.MeshBasicMaterial({ color: 0x5aa8ff, transparent: true, opacity: 1.0, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+        new THREE.CircleGeometry(0.16, 24),
+        new THREE.MeshBasicMaterial({ color: 0x8fc4ff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
       );
       dot.rotation.x = -Math.PI / 2;
       g.add(ring, dot);
@@ -334,81 +327,9 @@
     }
 
     /* ============================================================
-       解説ON: 部品ハイライトの輪(完成後の鑑賞中のみ)
-       ============================================================ */
-    _buildExplainHighlight() {
-      const g = new THREE.Group();
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.88, 1.0, 72),
-        new THREE.MeshBasicMaterial({
-          color: 0x6fb2ff, transparent: true, opacity: 0.55,
-          side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
-        })
-      );
-      ring.rotation.x = -Math.PI / 2;
-      g.add(ring);
-      g.renderOrder = 998;
-      g.visible = false;
-      this.explainRing = g;
-      this.explainRingMesh = ring;
-      this.sceneMgr.scene.add(g);
-    }
-
-    _highlightPart(group, def) {
-      const pos = new THREE.Vector3();
-      group.getWorldPosition(pos);
-      const r = (def.hitRadius || 5) * 1.08;
-      this.explainRing.position.set(pos.x, pos.y + 0.5, pos.z);
-      this.explainRing.scale.set(r, r, 1);
-      this.explainRing.visible = true;
-    }
-
-    /** 解説ON/OFF 切替(鑑賞中のみ) */
-    toggleExplain() {
-      if (this.appState !== AppState.VIEWING) return;
-      this.explainOn = !this.explainOn;
-      this.ui.setExplainButton(this.explainOn);
-      if (this.explainOn) {
-        const groups = [...this.placed].map((id) => this.groups[id]);
-        this.sceneMgr.setHoverTargets(groups);
-        this.sceneMgr.setClickTargets(groups);
-        this.sceneMgr.enableHover(true);
-        this.ui.showExplainPanel();
-        this.ui.setExplainPart(null);
-      } else {
-        this.sceneMgr.enableHover(false);
-        this.sceneMgr.setClickTargets([]);
-        this.explainRing.visible = false;
-        this.ui.hideExplainPanel();
-      }
-    }
-
-    /** ホバー(PC): 部品をハイライトして解説を表示。1つずつだけ反応させる。 */
-    _onExplainHover(group) {
-      if (!this.explainOn || this.appState !== AppState.VIEWING) return;
-      const def = group && group.userData && group.userData.partDef;
-      if (def && this.placed.has(def.id)) {
-        this._highlightPart(group, def);
-        this.ui.setExplainPart(def);
-      } else {
-        this.explainRing.visible = false;
-        this.ui.setExplainPart(null);
-      }
-    }
-
-    /* ============================================================
        クリック: 注油・部品情報
        ============================================================ */
     handlePartClick(partId) {
-      // 鑑賞中 + 解説ON: タップ/クリックで部品解説を表示(スマホ・タブレット対応)
-      if (this.appState === AppState.VIEWING) {
-        if (this.explainOn) {
-          const part = this.parts.find((p) => p.id === partId);
-          const g = this.groups[partId];
-          if (part) { this.ui.setExplainPart(part); if (g) this._highlightPart(g, part); }
-        }
-        return;
-      }
       // 注油中は注油クリック(handleOilClick)が座標で判定するため、部品クリックは情報表示のみ
       if (this.appState === AppState.OILING) return;
       if (this.appState !== AppState.ASSEMBLING) return;
@@ -734,12 +655,6 @@
       this.appState = AppState.VIEWING;
       this.magnified = false;
       this.finalState = null;
-      // 解説ONは鑑賞ごとにリセットしておく
-      this.explainOn = false;
-      this.ui.setExplainButton(false);
-      this.ui.hideExplainPanel();
-      this.sceneMgr.enableHover(false);
-      if (this.explainRing) this.explainRing.visible = false;
       const cam = this.sceneMgr;
       this.ui.enterCinemaMode();            // 通常UIは隠す
       this.ui.hideFinalCaption();
@@ -773,8 +688,6 @@
         // 画面外へ消えないよう範囲を制限
         cam.orbitGoal.radius = this.magnified ? Math.max(42, base * 0.6) : base;
         this.ui.setZoomLabel(this.magnified);
-      } else if (act === "explain") {
-        this.toggleExplain();
       } else if (act === "menu") {
         this._goToCompletedAssembly();
       }
@@ -786,12 +699,6 @@
       this.magnified = false;
       this.finalState = null;
       this.busy = false;
-      // 解説ONを解除
-      this.explainOn = false;
-      this.sceneMgr.enableHover(false);
-      this.ui.setExplainButton(false);
-      this.ui.hideExplainPanel();
-      if (this.explainRing) this.explainRing.visible = false;
       this.watch.rotation.x = 0;
       this.ui.hideViewControls();
       this.ui.hideFinalCaption();
@@ -1012,7 +919,7 @@
        ============================================================ */
     _applyCustomParams(part) {
       const p = part.params || (part.params = {});
-      if (part.type === "dial") { p.dialStyle = this.custom.dial; p.dialIndex = this.custom.dialIndex; }
+      if (part.type === "dial") p.dialStyle = this.custom.dial;
       else if (part.type === "hand") {
         p.handColor = this.custom.handColor;
         if (p.style !== "seconds") p.handShape = this.custom.handShape;
@@ -1062,17 +969,12 @@
       this.ui.showCustomizer({
         title: "文字盤と針を仕立てる",
         sub: "Dial & Hands — あなたの一本を選ぶ",
-        current: { dial: this.custom.dial, dialIndex: this.custom.dialIndex, handColor: this.custom.handColor, handShape: this.custom.handShape },
+        current: { dial: this.custom.dial, handColor: this.custom.handColor, handShape: this.custom.handShape },
         groups: [
-          { key: "dial", label: "文字盤の色", en: "Dial Colour", options: [
+          { key: "dial", label: "文字盤", en: "Dial", options: [
             { value: "silver", name: "シルバー", en: "Silver Opaline", swatch: "radial-gradient(circle at 38% 32%, #f3efe6, #d6d2c5)" },
             { value: "slate", name: "スレート", en: "Slate Grey", swatch: "radial-gradient(circle at 38% 32%, #3c424a, #1b1f25)" },
             { value: "navy", name: "ミッドナイト", en: "Midnight Blue", swatch: "radial-gradient(circle at 38% 32%, #2c3d64, #101a30)" }
-          ] },
-          { key: "dialIndex", label: "インデックス", en: "Index Style", options: [
-            { value: "bar", name: "バー", en: "Applied Bar", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><rect x="14" y="3" width="2" height="5" fill="#cdd2da"/><rect x="14" y="22" width="2" height="5" fill="#cdd2da"/><rect x="3" y="14" width="5" height="2" fill="#cdd2da"/><rect x="22" y="14" width="5" height="2" fill="#cdd2da"/></svg>' },
-            { value: "roman", name: "ローマ数字", en: "Roman", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><text x="15" y="20" text-anchor="middle" font-family="Times New Roman, serif" font-size="11" fill="#cdd2da">XII</text></svg>' },
-            { value: "arabic", name: "アラビア数字", en: "Arabic", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><text x="15" y="21" text-anchor="middle" font-family="Times New Roman, serif" font-size="14" fill="#cdd2da">12</text></svg>' }
           ] },
           { key: "handColor", label: "針の仕上げ", en: "Hand Finish", options: [
             { value: "blued", name: "ブルースチール", en: "Blued Steel", swatch: "linear-gradient(135deg, #2f50ad, #16264d)" },
@@ -1185,11 +1087,11 @@
       if (this.ring.visible) {
         this.ring.material.opacity = 0.3 + 0.3 * (0.5 + 0.5 * Math.sin(elapsed * 3.4));
       }
-      // 注油ガイドの青い輪(はっきりと見える青で、ゲームとしてパルスさせる)
+      // 注油ガイドの青い輪(落ち着いたパルス。強い発光にはしない)
       if (this.oilRing.visible) {
-        const pulse = 0.5 + 0.5 * Math.sin(elapsed * 2.6);   // ゆっくりしたテンポ
-        this.oilRingMesh.material.opacity = 0.64 + 0.32 * pulse;
-        const breathe = 1 + 0.07 * pulse;
+        const pulse = 0.5 + 0.5 * Math.sin(elapsed * 2.2);   // ゆっくりしたテンポ
+        this.oilRingMesh.material.opacity = 0.5 + 0.35 * pulse;
+        const breathe = 1 + 0.06 * pulse;
         this.oilRing.children[0].scale.setScalar(breathe); // 外輪だけ呼吸
       }
 
@@ -1247,20 +1149,6 @@
 
       // 完成シネマティック
       if (this.finalState) this._updateFinal(dt);
-
-      // 鑑賞/完成演出中の上品な演出(風防の反射 / ごく稀な流れ星)
-      if (this.appState === AppState.VIEWING || this.appState === AppState.CINEMATIC || this.finalState) {
-        this._glintT += dt;
-        if (this._glintT >= this._glintNext) {
-          this._glintT = 0; this._glintNext = 7 + Math.random() * 9;
-          this.ui.triggerCrystalGlint();
-        }
-        this._starT += dt;
-        if (this._starT >= this._starNext) {
-          this._starT = 0; this._starNext = 18 + Math.random() * 22;
-          this.ui.triggerShootingStar();
-        }
-      }
     }
 
     _updateRunning(dt, t) {

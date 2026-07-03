@@ -50,10 +50,6 @@
       this.tickHandlers = [];       // 毎フレーム: fn(dt, elapsed)
       this.partClickHandlers = [];  // 配置済み部品クリック: fn(partGroup)
       this.oilClickHandlers = [];   // 注油クリック: fn(isHit, worldPoint)
-      this.hoverHandlers = [];      // 解説ONのホバー: fn(partGroup|null)
-      this._hoverTargets = null;
-      this._hoverEnabled = false;
-      this._hoverPending = false;
       this.oilTarget = null;        // {pos:THREE.Vector3, radius:number} 注油中の座標
       this._raf = null;             // requestAnimationFrame ハンドル(停止用)
       this._onResizeBound = () => this._onResize();
@@ -209,15 +205,6 @@
         e.preventDefault();
         this.orbitGoal.radius = this._clampRadius(this.orbitGoal.radius * (1 + e.deltaY * 0.0012));
       }, { passive: false });
-
-      // 解説ON時: ドラッグ中でないときだけ、ホバー対象をレイキャストして通知(rAFで間引き)
-      el.addEventListener("pointermove", (e) => {
-        if (!this._hoverEnabled || dragging || pinch.active) return;
-        this._hoverX = e.clientX; this._hoverY = e.clientY;
-        if (this._hoverPending) return;
-        this._hoverPending = true;
-        requestAnimationFrame(() => { this._hoverPending = false; this._doHover(this._hoverX, this._hoverY); });
-      });
     }
 
     _clampRadius(r) { return Math.min(200, Math.max(38, r)); }
@@ -254,23 +241,6 @@
 
     /** クリック判定の対象(配置済み部品グループ)を設定 */
     setClickTargets(groups) { this._clickTargets = groups; }
-
-    /* ---- 解説ON: ホバー検出 ---- */
-    onHover(fn) { this.hoverHandlers.push(fn); }
-    setHoverTargets(groups) { this._hoverTargets = groups; }
-    enableHover(on) {
-      this._hoverEnabled = !!on;
-      if (!on) this.hoverHandlers.forEach((fn) => fn(null));
-    }
-    _doHover(cx, cy) {
-      if (!this._hoverTargets || !this._hoverTargets.length) {
-        this.hoverHandlers.forEach((fn) => fn(null)); return;
-      }
-      const hit = this.raycastObjects(cx, cy, this._hoverTargets);
-      let obj = hit && hit.object;
-      while (obj && !obj.userData.partDef) obj = obj.parent;
-      this.hoverHandlers.forEach((fn) => fn(obj || null));
-    }
 
     /** ローター慣性用: 蓄積したドラッグ方位量を取り出して 0 に戻す */
     consumeDragImpulse() { const v = this._dragImpulse; this._dragImpulse = 0; return v; }
@@ -342,64 +312,22 @@
       this.scene.fog = new THREE.Fog(0x0b0b0d, 190, 360);
     }
 
-    /* 完成シネマティック: 背景を深い紺の星空へ(うっすら銀河・微細な星)。
-       時計が主役のまま、静かで詩的な余韻を与える。 */
+    /* 完成シネマティック: 背景を黒〜濃紺のグラデーションへ */
     setCinemaBackground() {
-      const size = 1024;
+      const size = 512;
       const cv = document.createElement("canvas");
       cv.width = cv.height = size;
       const ctx = cv.getContext("2d");
-      // ほぼ黒に近い深い紺の下地
-      const base = ctx.createRadialGradient(size * 0.5, size * 0.42, 60, size * 0.5, size * 0.5, size * 0.78);
-      base.addColorStop(0, "#0b1224");
-      base.addColorStop(0.5, "#070a16");
-      base.addColorStop(1, "#020306");
-      ctx.fillStyle = base;
+      const g = ctx.createRadialGradient(size / 2, size * 0.42, 40, size / 2, size / 2, size * 0.75);
+      g.addColorStop(0, "#141a2e");
+      g.addColorStop(0.5, "#0a0d1a");
+      g.addColorStop(1, "#040509");
+      ctx.fillStyle = g;
       ctx.fillRect(0, 0, size, size);
-
-      // うっすらと銀河の気配(斜めの帯をごく淡く)
-      ctx.save();
-      ctx.translate(size * 0.5, size * 0.5);
-      ctx.rotate(-0.5);
-      const gal = ctx.createLinearGradient(0, -size * 0.22, 0, size * 0.22);
-      gal.addColorStop(0, "rgba(90,110,170,0)");
-      gal.addColorStop(0.5, "rgba(120,140,200,0.10)");
-      gal.addColorStop(1, "rgba(90,110,170,0)");
-      ctx.fillStyle = gal;
-      ctx.fillRect(-size, -size * 0.22, size * 2, size * 0.44);
-      // 銀河帯の中に微細な星を多めに
-      for (let i = 0; i < 900; i++) {
-        const x = (Math.random() - 0.5) * size * 1.6;
-        const y = (Math.random() - 0.5) * size * 0.34;
-        const a = Math.random() * 0.5;
-        ctx.fillStyle = "rgba(210,220,245," + a.toFixed(3) + ")";
-        ctx.fillRect(x, y, 1, 1);
-      }
-      ctx.restore();
-
-      // 全面に控えめの星(大小・明るさにバラつき)
-      for (let i = 0; i < 520; i++) {
-        const x = Math.random() * size, y = Math.random() * size;
-        const r = Math.random() < 0.08 ? 1.6 : Math.random() < 0.4 ? 1.1 : 0.7;
-        const a = 0.25 + Math.random() * 0.6;
-        ctx.beginPath();
-        ctx.fillStyle = "rgba(235,240,255," + a.toFixed(3) + ")";
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // ほんのわずかな暖色の星を数粒
-      for (let i = 0; i < 26; i++) {
-        const x = Math.random() * size, y = Math.random() * size;
-        ctx.beginPath();
-        ctx.fillStyle = "rgba(255,226,190," + (0.3 + Math.random() * 0.4).toFixed(3) + ")";
-        ctx.arc(x, y, 1.0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
       const tex = new THREE.CanvasTexture(cv);
       tex.encoding = THREE.sRGBEncoding;
       this.scene.background = tex;
-      this.scene.fog = new THREE.Fog(0x05060c, 170, 360);
+      this.scene.fog = new THREE.Fog(0x070a14, 150, 340);
     }
 
     _onResize() {

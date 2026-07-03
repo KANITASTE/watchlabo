@@ -1243,53 +1243,19 @@
       ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     }
 
-    // インデックス(バー / ローマ数字 / アラビア数字) — 12時=h:0
-    const idxStyle = (opts && opts.index) || "bar";
-    const ROMAN = ["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"];
-    const ARABIC = ["12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"];
-    const numFont = (sizeW, weight, family) =>
-      weight + " " + Math.max(13, Math.round(px(sizeW))) + "px " + family;
-    // 数字はすべて同じ向き(12時が上の直立)にそろえる。
-    // 12時位置の向きを一度だけ求め、全数字で共通の回転量として使う(写像は剤形なので一定回転→均一な上向き)。
-    const rrNum = rWorld * 0.79;
-    const p0 = W2P(dirAt(0)[0] * rrNum, dirAt(0)[1] * rrNum);
-    const glyphRot = Math.atan2(p0[0] - c, -(p0[1] - c));
-
+    // バーインデックス(12本)
     for (let h = 0; h < 12; h++) {
       const th = (h / 12) * Math.PI * 2;
       const dir = dirAt(th);
-      // 数字は目盛りにやや寄せ、バーはインデックス位置に置く
-      const rr = idxStyle === "bar" ? Ridx : rrNum;
-      const [ix, iy] = W2P(dir[0] * rr, dir[1] * rr);
-      if (Math.hypot(ix - scx, iy - scy) < scR * (idxStyle === "bar" ? 1.5 : 1.7)) continue;
-
-      if (idxStyle === "roman" || idxStyle === "arabic") {
-        const label = (idxStyle === "roman" ? ROMAN : ARABIC)[h];
-        ctx.save();
-        ctx.translate(ix, iy);
-        ctx.rotate(glyphRot);
-        ctx.fillStyle = pal.idx;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        // ローマ=細身の上品なセリフ / アラビア=読みやすく品のあるセリフ
-        ctx.font = idxStyle === "roman"
-          ? numFont(3.5, "500", "'Times New Roman', 'Hiragino Mincho ProN', serif")
-          : numFont(3.7, "500", "'Times New Roman', Georgia, serif");
-        ctx.fillText(label, 0, 0);
-        ctx.restore();
-      } else {
-        // 応用バーインデックス(IWCポートフィノ寄り)
-        const barAng = Math.atan2(iy - c, ix - c); // 半径方向(画素空間)
-        ctx.save();
-        ctx.translate(ix, iy);
-        ctx.rotate(barAng);
-        // 12/3/6/9 をわずかに長くしてリズムを付ける
-        const isCardinal = h % 3 === 0;
-        const len = isCardinal ? px(4.0) : px(3.2);
-        ctx.fillStyle = pal.idx;
-        ctx.fillRect(-len / 2, -2.4, len, 4.8);
-        ctx.restore();
-      }
+      const [ix, iy] = W2P(dir[0] * Ridx, dir[1] * Ridx);
+      if (Math.hypot(ix - scx, iy - scy) < scR * 1.5) continue;
+      const barAng = Math.atan2(iy - c, ix - c); // 半径方向(画素空間)
+      ctx.save();
+      ctx.translate(ix, iy);
+      ctx.rotate(barAng);
+      ctx.fillStyle = pal.idx;
+      ctx.fillRect(-px(1.6), -2.4, px(3.2), 4.8);
+      ctx.restore();
     }
 
     // スモールセコンド(3D 秒針軸と厳密に一致)
@@ -1343,7 +1309,7 @@
     const face = new THREE.Mesh(
       new THREE.CylinderGeometry(r, r, 0.5, 128),
       new THREE.MeshStandardMaterial({
-        map: dialTexture(r, { palette: pal, index: p.dialIndex }), roughness: 0.62, metalness: 0.15, envMapIntensity: 0.28
+        map: dialTexture(r, { palette: pal }), roughness: 0.62, metalness: 0.15, envMapIntensity: 0.28
       })
     );
     face.position.y = 0.25;
@@ -1388,16 +1354,14 @@
     topRim.position.y = body.position.y + h;
     g.add(topRim);
 
-    // ラグ(12時・6時方向) — ベルト非装着前提のため出っ張りを抑えた控えめな形。
-    // 露骨なバネ棒用の張り出しをやめ、ケース側面に溶け込む低い突起にする。
+    // ラグ(12時・6時方向) — ブレスレット取付用
     [-1, 1].forEach((dir) => {
-      const lugH = h * 0.66;
-      const lug = new THREE.Mesh(new THREE.BoxGeometry(11, lugH, 3.2), brushed);
-      lug.position.set(0, body.position.y + h - lugH / 2 - 0.4, dir * (outer - 2.1));
+      const lug = new THREE.Mesh(new THREE.BoxGeometry(10, h, 6), brushed);
+      lug.position.set(0, body.position.y + h / 2, dir * (outer - 1));
       g.add(lug);
-      // 上面をケース上面と揃えた細い鏡面(額縁のような一体感)
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(11, 0.4, 3.2), polishMat());
-      cap.position.set(0, body.position.y + h - 0.4, dir * (outer - 2.1));
+      // ラグ上面の鏡面
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(10, 0.5, 6), polishMat());
+      cap.position.set(0, body.position.y + h, dir * (outer - 1));
       g.add(cap);
     });
 
@@ -1422,12 +1386,12 @@
     return mesh;
   }
 
-  /** パッキン: 完成後は目立たない暗色(ダークグレー)のトーラス。ベゼル下に自然に収まる。 */
+  /** パッキン: 目立たない暗色のゴムトーラス(ベゼル下に収まる) */
   function buildGasket(p) {
-    const r = p.radius || 24.7, t = p.thickness || 0.24;
+    const r = p.radius || 22.6, t = p.thickness || 0.32;
     const mesh = new THREE.Mesh(
       new THREE.TorusGeometry(r, t, 12, 120),
-      new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.88, metalness: 0.08 })
+      new THREE.MeshStandardMaterial({ color: 0x2a0d0f, roughness: 0.7, metalness: 0.05 })
     );
     mesh.rotation.x = Math.PI / 2;
     return mesh;

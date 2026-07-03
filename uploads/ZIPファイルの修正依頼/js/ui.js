@@ -42,15 +42,6 @@
         completedControls: $("completed-controls"),
         viewControls: $("view-controls"),
         zoomBtn: document.querySelector('#view-controls [data-view="zoom"]'),
-        explainBtn: document.querySelector('#view-controls [data-view="explain"]'),
-        explainPanel: $("explain-panel"),
-        epHint: $("ep-hint"),
-        epBody: $("ep-body"),
-        epNameJa: $("ep-name-ja"),
-        epNameEn: $("ep-name-en"),
-        epRole: $("ep-role"),
-        crystalGlint: $("crystal-glint"),
-        shootingStar: $("shooting-star"),
         toolGuide: $("tool-guide"),
         rsMain: $("rs-main"),
         rsTool: $("rs-tool"),
@@ -452,46 +443,6 @@
     hideViewControls() { if (this.el.viewControls) this.el.viewControls.hidden = true; }
     setZoomLabel(magnified) {
       if (this.el.zoomBtn) this.el.zoomBtn.textContent = magnified ? "拡大を解除" : "拡大鑑賞";
-    }
-
-    /* ------------------------------------------------------------
-       解説ON: 部品ガイドパネル / トグル表示
-       ------------------------------------------------------------ */
-    setExplainButton(on) {
-      if (!this.el.explainBtn) return;
-      this.el.explainBtn.textContent = on ? "解説 ON" : "解説 OFF";
-      this.el.explainBtn.classList.toggle("on", !!on);
-    }
-    showExplainPanel() { if (this.el.explainPanel) this.el.explainPanel.hidden = false; }
-    hideExplainPanel() { if (this.el.explainPanel) this.el.explainPanel.hidden = true; }
-    /** 部品の解説を表示(partがnullならヒントに戻す) */
-    setExplainPart(part) {
-      if (!this.el.explainPanel) return;
-      if (!part) {
-        if (this.el.epHint) this.el.epHint.style.display = "";
-        if (this.el.epBody) this.el.epBody.hidden = true;
-        return;
-      }
-      if (this.el.epHint) this.el.epHint.style.display = "none";
-      if (this.el.epBody) this.el.epBody.hidden = false;
-      this.el.epNameJa.textContent = part.name;
-      this.el.epNameEn.textContent = part.nameEn || "";
-      this.el.epRole.textContent = part.role || part.description || "";
-    }
-
-    /** 風防の上品な反射(斜めにすっと入る細い光) */
-    triggerCrystalGlint() {
-      const el = this.el.crystalGlint;
-      if (!el) return;
-      el.classList.remove("run"); void el.offsetWidth; el.classList.add("run");
-    }
-    /** ごく稀な流れ星 */
-    triggerShootingStar() {
-      const el = this.el.shootingStar;
-      if (!el) return;
-      el.style.left = (4 + Math.random() * 30) + "%";
-      el.style.top = (8 + Math.random() * 26) + "%";
-      el.classList.remove("run"); void el.offsetWidth; el.classList.add("run");
     }
   }
 

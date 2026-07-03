@@ -143,32 +143,13 @@
     </div>
   </div>
 
-  <!-- ============ 鑑賞ツールバー(表/裏/拡大/解説/戻る) ============ -->
+  <!-- ============ 鑑賞ツールバー(表/裏/拡大/戻る) ============ -->
   <div id="view-controls" hidden>
     <button type="button" data-view="front">表側</button>
     <button type="button" data-view="back">裏側(ムーブメント)</button>
     <button type="button" data-view="zoom">拡大鑑賞</button>
-    <button type="button" data-view="explain">解説 OFF</button>
     <button type="button" data-view="menu">戻る</button>
   </div>
-
-  <!-- ============ 解説パネル(完成後・解説ON時) ============ -->
-  <aside id="explain-panel" class="glass" hidden>
-    <div class="ep-head">部品解説 <span>Part Guide</span></div>
-    <div class="ep-hint" id="ep-hint">ムーブメントの部品にカーソルを合わせる、またはタップすると解説が表示されます。</div>
-    <div class="ep-body" id="ep-body" hidden>
-      <div class="ep-name-ja" id="ep-name-ja">—</div>
-      <div class="ep-name-en" id="ep-name-en">—</div>
-      <div class="ep-role" id="ep-role">—</div>
-    </div>
-  </aside>
-
-  <!-- ============ 風防のさりげない反射 / 流れ星(鑑賞・完成演出時) ============ -->
-  <div id="crystal-glint"></div>
-  <div id="shooting-star"></div>
-
-  <!-- ============ バージョン情報 ============ -->
-  <div id="version-badge" title="現在のビルド">Cal.02 · v0.8.3 · Build 2026.07</div>
 
   <!-- ============ 完成後の組立画面コントロール(7-5) ============ -->
   <div id="completed-controls" hidden>

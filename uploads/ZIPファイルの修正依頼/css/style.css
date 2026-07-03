@@ -665,35 +665,35 @@ body.completed-ui #cta-btn { display: none; }
    机画像は4番目のレイヤー。上部の道具が「作業マットを圧迫しない範囲で」見えるようにする。
    ============================================================ */
 
-/* Desktop: 上部の道具は雰囲気が伝わる程度にだけ見える。作業マットを主役にし、上端の余白は見せない。 */
+/* Desktop: 上部の道具がおよそ1/3見える。中央の作業マットを最優先。 */
 @media (min-width: 1200px) {
   body {
-    background-size: cover, 100% 100%, 100% 100%, 124% auto;
-    background-position: center, center, center, center 34%;
+    background-size: cover, 100% 100%, 100% 100%, 112% auto;
+    background-position: center, center, center, center 12%;
   }
 }
 
-/* Tablet landscape: デスクトップよりマットを広く。道具はごくわずか。 */
+/* Tablet landscape: デスクトップより背景を上へ。道具は半分程度隠す。 */
 @media (min-width: 768px) and (max-width: 1199px) and (orientation: landscape) {
   body {
-    background-size: cover, 100% 100%, 100% 100%, 138% auto;
-    background-position: center, center, center, center 30%;
+    background-size: cover, 100% 100%, 100% 100%, 126% auto;
+    background-position: center, center, center, center 4%;
   }
 }
 
-/* Tablet portrait: 縦向きは作業領域を最優先。道具は上端にわずかに。 */
+/* Tablet portrait: 縦向きは作業領域を確保しつつ道具を半分程度隠す。 */
 @media (min-width: 768px) and (max-width: 1199px) and (orientation: portrait) {
   body {
-    background-size: cover, 100% 100%, 100% 100%, 182% auto;
-    background-position: center, center, center, center 18%;
+    background-size: cover, 100% 100%, 100% 100%, 168% auto;
+    background-position: center, center, center, center 2%;
   }
 }
 
 /* Smartphone: 道具は雰囲気が伝わる程度。上部背景がUIを圧迫しない。 */
 @media (max-width: 767px) {
   body {
-    background-size: cover, 100% 100%, 100% 100%, 240% auto;
-    background-position: center, center, center, center 10%;
+    background-size: cover, 100% 100%, 100% 100%, 220% auto;
+    background-position: center, center, center, center -6%;
   }
 }
 
@@ -722,91 +722,3 @@ body.completed-ui #cta-btn { display: none; }
   .part-card { width: 86px; }
   .part-card img { width: 54px; height: 54px; }
 }
-
-/* ============================================================
-   バージョン情報バッジ(右下・控えめ)
-   ============================================================ */
-#version-badge {
-  position: fixed; right: 14px; bottom: 12px; z-index: 45;
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em;
-  color: var(--text-faint); opacity: 0.66; pointer-events: none;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.6); transition: opacity 0.5s var(--ease);
-  white-space: nowrap;
-}
-/* 鑑賞ツールバー表示中は重ならないよう少し上へ */
-body.cinema #version-badge { opacity: 0.5; }
-
-/* ============================================================
-   解説ONの部品ガイドパネル(完成後)
-   ============================================================ */
-#explain-panel {
-  position: fixed; right: 22px; top: 122px; width: 264px; z-index: 82;
-  padding: 20px; transition: opacity 0.4s var(--ease);
-}
-#explain-panel[hidden] { display: none; }
-.ep-head {
-  font-size: 10px; letter-spacing: 0.36em; text-transform: uppercase;
-  color: var(--text-faint); font-weight: 600; margin-bottom: 12px;
-}
-.ep-head span { color: var(--accent); opacity: 0.8; margin-left: 4px; }
-.ep-hint { font-size: 11.5px; line-height: 1.8; color: var(--text-dim); }
-.ep-name-ja { font-size: 21px; font-weight: 600; letter-spacing: 0.03em; color: var(--text); margin-bottom: 3px; }
-.ep-name-en {
-  font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase;
-  color: var(--accent); margin-bottom: 14px;
-}
-.ep-role { font-size: 13px; line-height: 1.8; color: var(--text); }
-@media (max-width: 860px) {
-  #explain-panel {
-    right: 12px; left: 12px; top: auto; bottom: 92px; width: auto;
-    padding: 14px 16px;
-  }
-  .ep-name-ja { font-size: 18px; }
-}
-
-/* 鑑賞ツールバーの解説トグルが ON のときの見え方 */
-#view-controls button[data-view="explain"].on {
-  border-color: rgba(111, 178, 255, 0.6); color: var(--accent);
-  background: rgba(111, 178, 255, 0.12);
-}
-
-/* ============================================================
-   風防の上品な反射(たまに斜めへすっと入る細い光・鑑賞時のみ)
-   ============================================================ */
-#crystal-glint {
-  position: fixed; inset: 0; z-index: 57; pointer-events: none; opacity: 0;
-  background: linear-gradient(118deg,
-    transparent 44%,
-    rgba(255,255,255,0.06) 48.5%,
-    rgba(255,255,255,0.22) 50%,
-    rgba(255,255,255,0.06) 51.5%,
-    transparent 56%);
-  transform: translateX(-55%);
-}
-#crystal-glint.run { animation: crystal-glint 1.8s cubic-bezier(0.33, 0, 0.2, 1); }
-@keyframes crystal-glint {
-  0%   { opacity: 0; transform: translateX(-55%); }
-  30%  { opacity: 1; }
-  70%  { opacity: 1; }
-  100% { opacity: 0; transform: translateX(55%); }
-}
-
-/* ============================================================
-   ごく稀な流れ星(完成背景・鑑賞背景の演出)
-   ============================================================ */
-#shooting-star {
-  position: fixed; z-index: 54; pointer-events: none; opacity: 0;
-  width: 160px; height: 1.5px; left: 8%; top: 16%;
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(214,226,245,0.9) 88%, #ffffff 100%);
-  border-radius: 2px; transform: rotate(24deg) translateX(-40px);
-  filter: drop-shadow(0 0 4px rgba(200,220,255,0.7));
-}
-#shooting-star.run { animation: shooting-star 1.15s ease-in forwards; }
-@keyframes shooting-star {
-  0%   { opacity: 0; transform: rotate(24deg) translate(-40px, -20px) scaleX(0.4); }
-  12%  { opacity: 0.9; }
-  70%  { opacity: 0.9; }
-  100% { opacity: 0; transform: rotate(24deg) translate(360px, 160px) scaleX(1); }
-}
-/* 流れ星・反射は鑑賞/完成演出中のみ意味を持つ */
-body:not(.cinema) #shooting-star { display: none; }
