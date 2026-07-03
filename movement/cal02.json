@@ -50,6 +50,11 @@
       "params": {
         "radius": 24,
         "thickness": 3
+      },
+      "explainAnchor": {
+        "x": 14,
+        "y": 1,
+        "z": -9
       }
     },
     {
@@ -80,6 +85,11 @@
       "params": {
         "radius": 9.5,
         "teeth": 84
+      },
+      "explainAnchor": {
+        "x": 7,
+        "y": 2.5,
+        "z": 2
       }
     },
     {
@@ -113,6 +123,11 @@
         "spokes": 4,
         "color": "gilt",
         "pivotH": 3.4
+      },
+      "explainAnchor": {
+        "x": -2,
+        "y": 2.5,
+        "z": 7
       }
     },
     {
@@ -146,6 +161,11 @@
         "spokes": 4,
         "color": "gilt",
         "pivotH": 3.2
+      },
+      "explainAnchor": {
+        "x": 6,
+        "y": 2.5,
+        "z": 5
       }
     },
     {
@@ -179,6 +199,11 @@
         "spokes": 4,
         "color": "gilt",
         "pivotH": 6
+      },
+      "explainAnchor": {
+        "x": 5,
+        "y": 2.5,
+        "z": -6
       }
     },
     {
@@ -215,9 +240,18 @@
       "oilPoint": {
         "id": "escape_upper_jewel",
         "label": "ガンギ車上側軸受",
-        "position": [9, 3.0, -6.8],
+        "position": [
+          9,
+          3,
+          -6.8
+        ],
         "hitRadius": 2.2,
         "hint": "ガンギ車の上側軸受(青く点滅する輪の中心)へ微量を注油します。"
+      },
+      "explainAnchor": {
+        "x": 4,
+        "y": 2.5,
+        "z": 3
       }
     },
     {
@@ -290,6 +324,11 @@
           ]
         ],
         "finish": "geneva"
+      },
+      "explainAnchor": {
+        "x": -8,
+        "y": 3,
+        "z": -3
       }
     },
     {
@@ -355,6 +394,11 @@
           ]
         ],
         "finish": "geneva"
+      },
+      "explainAnchor": {
+        "x": 9,
+        "y": 3,
+        "z": -4
       }
     },
     {
@@ -388,9 +432,18 @@
       "oilPoint": {
         "id": "pallet_jewels",
         "label": "アンクル爪石",
-        "position": [3.5, 2.85, -10],
+        "position": [
+          3.5,
+          2.85,
+          -10
+        ],
         "hitRadius": 2.4,
         "hint": "アンクルの爪石(青く点滅する輪の中心)へ微量を注油します。"
+      },
+      "explainAnchor": {
+        "x": 3,
+        "y": 2,
+        "z": 1
       }
     },
     {
@@ -441,6 +494,11 @@
           ]
         ],
         "finish": "satin"
+      },
+      "explainAnchor": {
+        "x": 3,
+        "y": 3,
+        "z": -2
       }
     },
     {
@@ -469,6 +527,11 @@
       },
       "params": {
         "radius": 7.5
+      },
+      "explainAnchor": {
+        "x": 0,
+        "y": 3.5,
+        "z": 8
       }
     },
     {
@@ -515,6 +578,11 @@
           ]
         ],
         "finish": "hairline"
+      },
+      "explainAnchor": {
+        "x": -4,
+        "y": 4,
+        "z": 8
       }
     },
     {
@@ -784,6 +852,11 @@
           ]
         ],
         "finish": "hairline"
+      },
+      "explainAnchor": {
+        "x": -10,
+        "y": 3,
+        "z": 6
       }
     },
     {
@@ -812,6 +885,11 @@
       },
       "params": {
         "radius": 22
+      },
+      "explainAnchor": {
+        "x": 0,
+        "y": 4,
+        "z": 23
       }
     },
     {
@@ -1077,7 +1155,7 @@
       "tool": "tweezers",
       "position": [
         0,
-        6.0,
+        6,
         0
       ],
       "rotationY": 0,
@@ -1114,6 +1192,11 @@
       "wrongReason": "風防はケース最上部の座に嵌めます。パッキンより後、ベゼルより先という順序を守ります。",
       "params": {
         "radius": 27.2
+      },
+      "explainAnchor": {
+        "x": -15,
+        "y": 1.5,
+        "z": -11
       }
     },
     {
@@ -1168,6 +1251,11 @@
       "params": {
         "radius": 3.2,
         "width": 2.6
+      },
+      "explainAnchor": {
+        "x": 3,
+        "y": 0,
+        "z": 0
       }
     }
   ]

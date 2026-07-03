@@ -243,7 +243,7 @@
       // ヒットしたメッシュから部品グループ(userData.partDef を持つ親)を遡って探す
       let obj = hit.object;
       while (obj && !obj.userData.partDef) obj = obj.parent;
-      if (obj) this.partClickHandlers.forEach((fn) => fn(obj));
+      if (obj) this.partClickHandlers.forEach((fn) => fn(obj, hit.point ? hit.point.clone() : null));
     }
 
     /** 注油クリックのリスナーを登録 */
@@ -260,16 +260,17 @@
     setHoverTargets(groups) { this._hoverTargets = groups; }
     enableHover(on) {
       this._hoverEnabled = !!on;
-      if (!on) this.hoverHandlers.forEach((fn) => fn(null));
+      if (!on) this.hoverHandlers.forEach((fn) => fn(null, null));
     }
     _doHover(cx, cy) {
       if (!this._hoverTargets || !this._hoverTargets.length) {
-        this.hoverHandlers.forEach((fn) => fn(null)); return;
+        this.hoverHandlers.forEach((fn) => fn(null, null)); return;
       }
       const hit = this.raycastObjects(cx, cy, this._hoverTargets);
       let obj = hit && hit.object;
       while (obj && !obj.userData.partDef) obj = obj.parent;
-      this.hoverHandlers.forEach((fn) => fn(obj || null));
+      const point = obj && hit && hit.point ? hit.point.clone() : null;
+      this.hoverHandlers.forEach((fn) => fn(obj || null, point));
     }
 
     /** ローター慣性用: 蓄積したドラッグ方位量を取り出して 0 に戻す */

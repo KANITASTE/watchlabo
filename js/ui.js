@@ -406,6 +406,15 @@
     }
     hideFinalCaption() { this.el.finalCaption.classList.remove("visible"); }
 
+    /** 完成後メニュー(4項目)を単独で再表示する(鑑賞からの帰還用) */
+    showFinalMenu(caliber) {
+      document.body.classList.remove("completed-ui");
+      document.body.classList.add("cinema");
+      this.hideViewControls();
+      this.hideCompletedControls();
+      this.showFinalCaption(caliber);
+    }
+
     /* ------------------------------------------------------------
        モード選択画面(「モードを変えて最初から作る」後)
        ------------------------------------------------------------ */
@@ -493,10 +502,8 @@
       this.el.ecDot.style.top = dot.y + "px";
       this.el.ecBox.style.left = box.x + "px";
       this.el.ecBox.style.top = box.y + "px";
-      this.el.ecLine.setAttribute("x1", dot.x);
-      this.el.ecLine.setAttribute("y1", dot.y);
-      this.el.ecLine.setAttribute("x2", line2.x);
-      this.el.ecLine.setAttribute("y2", line2.y);
+      // 点 → ボックスへの細い直線
+      this.el.ecLine.setAttribute("points", dot.x + "," + dot.y + " " + line2.x + "," + line2.y);
     }
     /** 説明ボックスの実寸(線の接続先計算用) */
     calloutBoxSize() {

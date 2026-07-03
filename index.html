@@ -32,6 +32,9 @@
     <button id="reset-btn" type="button" title="進捗をリセット">RESET</button>
   </header>
 
+  <!-- [チェック用] TOPから完成後メニューへ飛ぶ(どの画面でも押せるよう body 直下) -->
+  <button id="dev-jump-btn" type="button" title="[チェック用] 完成後メニューへ飛ぶ">▶ 完成メニュー</button>
+
   <div id="mode-badge">Learning Mode</div>
 
   <!-- ============ 左パネル: 章 + サポート表示 ============ -->
@@ -138,7 +141,6 @@
       <button type="button" data-act="movement">ムーブメントを見る</button>
       <button type="button" data-act="restart">最初から作る</button>
       <button type="button" data-act="changeMode">モードを変えて最初から作る</button>
-      <button type="button" data-act="menu">メインメニューへ戻る</button>
     </div>
   </div>
 
@@ -152,13 +154,13 @@
       <span class="vcs-track"><span class="vcs-knob"></span></span>
       <span class="vcs-state">OFF</span>
     </button>
-    <button type="button" data-view="menu">戻る</button>
+    <button type="button" data-view="menu">完成後メニューを再表示</button>
   </div>
 
-  <!-- ============ 解説ON: ヒント + 点＋線＋説明ボックス ============ -->
-  <div id="explain-hint" hidden>ムーブメントの部品にカーソルを合わせる・タップすると解説が表示されます</div>
+  <!-- ============ 解説ON: ヒント + 点＋L字線＋説明ボックス ============ -->
+  <div id="explain-hint" hidden>部品にカーソルを合わせる・タップすると解説が表示されます</div>
   <div id="explain-callout" hidden>
-    <svg id="ec-svg" width="100%" height="100%"><line id="ec-line" x1="0" y1="0" x2="0" y2="0"></line></svg>
+    <svg id="ec-svg" width="100%" height="100%"><polyline id="ec-line" points="" fill="none"></polyline></svg>
     <span id="ec-dot"></span>
     <div id="ec-box" class="glass">
       <div class="ec-name-ja" id="ec-name-ja">—</div>

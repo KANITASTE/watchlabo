@@ -86,8 +86,15 @@
 
       /* ---- 完成後の解説ON / 鑑賞演出 ---- */
       this.explainOn = false;
-      this._explainTarget = null;              // {group, def, worldPos}
+      this.viewSide = "front";                  // 現在の鑑賞面(front=表側 / back=ムーブメント)
+      this._explainTarget = null;              // {group, def, anchorLocal}
+      this._hoverShownId = null;               // 現在表示中の部品ID
+      this._hoverPendingId = undefined;        // 200ms待機中の部品ID
+      this._hoverTimer = null;                 // 表示遅延タイマー
+      this._hoverClearTimer = null;            // 消去猶予タイマー
       this._starT = 0; this._starNext = 12 + Math.random() * 14;
+      /* 風防反射: カメラ/時計が動いているときだけ短く光らせる */
+      this._camPrev = null; this._glintCool = 0;
     }
 
     /* ============================================================
@@ -117,10 +124,14 @@
       this.ui.onFinalAction = (act) => this.finalAction(act);
       this.ui.onViewAction = (act) => this.viewAction(act);
       this.ui.onCompletedAction = (act) => this.completedAction(act);
-      this.sceneMgr.onPartClick((group) => this.handlePartClick(group.userData.partDef.id));
+      this.sceneMgr.onPartClick((group, point) => this.handlePartClick(group.userData.partDef.id, point));
       this.sceneMgr.onOilClick((isHit) => this.handleOilClick(isHit));
-      this.sceneMgr.onHover((g) => this._onExplainHover(g));
+      this.sceneMgr.onHover((g, point) => this._onExplainHover(g, point));
       this.sceneMgr.onTick((dt, t) => this.update(dt, t));
+
+      // [チェック用] TOPから完成後メニューへ一発で飛ぶボタン
+      const devJump = document.getElementById("dev-jump-btn");
+      if (devJump) devJump.addEventListener("click", () => this.jumpToCompleteMenu());
 
       this.ui.setMode(this.mode);
       this._syncChapterState();
@@ -330,31 +341,49 @@
       this._updateRingTarget();
       this._updateOilGuide();
       this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
-      // 文字盤/外装を選び直す導線(第2・第3章の組立中のみ)
+      // 文字盤を選び直す導線。ケース工程へ進む前(文字盤側の組立中)のみ表示。
       this.ui.showRecustomize(
-        !this.busy && this.appState === AppState.ASSEMBLING &&
-          (this.activeChapter === "dial" || this.activeChapter === "case"),
+        !this.busy && this.appState === AppState.ASSEMBLING && this.activeChapter === "dial",
         () => this.reopenCustomizer()
       );
     }
 
-    /** 現在の章に応じたカスタマイズを開き直す(選択状態は保持)。工程は進めない。 */
+    /** 文字盤カスタマイズを開き直す(選択状態は保持)。ケース工程に入ったら不可。 */
     reopenCustomizer() {
       if (this.busy) return;
       if (this.activeChapter === "dial") {
         this._openDialCustomizer(() => { this._refresh(); });
-      } else if (this.activeChapter === "case") {
-        this._openCaseCustomizer(() => { this._refresh(); });
       }
     }
 
     /* ============================================================
-       解説ON: 点＋線＋説明ボックス(完成後の鑑賞中のみ)
+       解説ON: 点＋L字線＋説明ボックス(完成後の鑑賞中のみ)
        ============================================================ */
-    /** 現在の解説対象を設定し、説明ボックスの内容を更新する */
-    _setExplainTarget(group, def) {
-      this._explainTarget = { group, def, worldPos: new THREE.Vector3() };
-      group.getWorldPosition(this._explainTarget.worldPos);
+    /** 現在の鑑賞面で解説対象になる部品グループを返す。
+       表側は風防のみ / ムーブメント側は主要部品(movement章)。 */
+    _explainTargetGroups() {
+      let ids;
+      if (this.viewSide === "front") {
+        ids = this.parts.filter((p) => p.type === "crystal" || p.id === "crown").map((p) => p.id);
+      } else {
+        ids = this.chapterParts("movement").map((p) => p.id);
+      }
+      return ids.filter((id) => this.placed.has(id)).map((id) => this.groups[id]).filter(Boolean);
+    }
+
+    /** 解説点のローカルアンカーを決める。該当パーツの中心を指す。
+       (中心は自転軸上にあるため、テンプ等が動いても点はぶれない) */
+    _resolveAnchorLocal(group, def, intersectionPoint) {
+      const box = new THREE.Box3().setFromObject(group);
+      const c = box.getCenter(new THREE.Vector3());
+      return group.worldToLocal(c);
+    }
+
+    /** 現在の解説対象を設定し、説明ボックスの内容を更新する。同時表示は常に1部品。 */
+    _setExplainTarget(group, def, intersectionPoint) {
+      const anchorLocal = this._resolveAnchorLocal(group, def, intersectionPoint);
+      this._explainTarget = { group, def, anchorLocal };
+      this._hoverShownId = def.id;
       this.ui.setCalloutContent(def);
       this.ui.showExplainHint(false);
       this._updateCalloutPos();
@@ -362,16 +391,34 @@
 
     _clearExplainTarget() {
       this._explainTarget = null;
+      this._hoverShownId = null;
       this.ui.hideCallout();
       if (this.explainOn) this.ui.showExplainHint(true);
     }
 
-    /** 対象部品の画面位置を求め、点・線・ボックス位置を更新する(毎フレーム) */
+    /** 対象部品の画面位置を求め、点・L字線・ボックス位置を更新(毎フレーム)。
+       回転・拡大してもアンカーを再計算して追従する。 */
     _updateCalloutPos() {
       const t = this._explainTarget;
       if (!t) return;
-      t.group.getWorldPosition(t.worldPos);
-      const s = this.sceneMgr.worldToScreen(t.worldPos);
+      // 部品自体の回転(テンプの振動・歯車の回転など)でアンカーが毎フレーム揺れて
+      // ボックスがぶるぶる動くのを防ぐため、アンカー計算のときだけ自転を基準姿勢
+      // (baseRotY)へ一時的に戻して安定した位置を求める。時計全体の反転・ドラッグ・
+      // ズームには従来どおり追従する。
+      const g = t.group;
+      const savedRotY = g.rotation.y;
+      const baseRotY = (g.userData && g.userData.baseRotY) || 0;
+      let worldPos;
+      if (savedRotY !== baseRotY) {
+        g.rotation.y = baseRotY;
+        g.updateWorldMatrix(true, false);
+        worldPos = g.localToWorld(t.anchorLocal.clone());
+        g.rotation.y = savedRotY;
+        g.updateWorldMatrix(true, false);
+      } else {
+        worldPos = g.localToWorld(t.anchorLocal.clone());
+      }
+      const s = this.sceneMgr.worldToScreen(worldPos);
       const W = window.innerWidth, H = window.innerHeight;
       const dot = { x: s.x, y: s.y };
       const sz = this.ui.calloutBoxSize();
@@ -386,49 +433,105 @@
       this.ui.positionCallout(dot, { x: bx, y: by }, line2);
     }
 
-    /** 解説ON/OFF 切替(鑑賞中のみ) */
+    /** 解説ON/OFF 切替(鑑賞中のみ。拡大鑑賞中も使える) */
     toggleExplain() {
       if (this.appState !== AppState.VIEWING) return;
       this.explainOn = !this.explainOn;
       this.ui.setExplainButton(this.explainOn);
+      this._cancelHoverTimers();
       if (this.explainOn) {
-        const groups = [...this.placed].map((id) => this.groups[id]);
+        const groups = this._explainTargetGroups();
         this.sceneMgr.setHoverTargets(groups);
         this.sceneMgr.setClickTargets(groups);
         this.sceneMgr.enableHover(true);
         this.ui.showExplainHint(true);
         this.ui.hideCallout();
-        this._explainTarget = null;
+        this._explainTarget = null; this._hoverShownId = null; this._hoverPendingId = undefined;
       } else {
         this.sceneMgr.enableHover(false);
         this.sceneMgr.setClickTargets([]);
         this.ui.showExplainHint(false);
         this.ui.hideCallout();
-        this._explainTarget = null;
+        this._explainTarget = null; this._hoverShownId = null; this._hoverPendingId = undefined;
       }
     }
 
-    /** ホバー(PC): 部品に点＋線＋ボックスで解説を表示。1つずつだけ反応させる。 */
-    _onExplainHover(group) {
+    /** 鑑賞面を切り替えたときに解説対象を再計算する(解説ONのときのみ) */
+    _refreshExplainTargets() {
+      if (!this.explainOn) return;
+      this._cancelHoverTimers();
+      const groups = this._explainTargetGroups();
+      this.sceneMgr.setHoverTargets(groups);
+      this.sceneMgr.setClickTargets(groups);
+      this._explainTarget = null; this._hoverShownId = null; this._hoverPendingId = undefined;
+      this.ui.hideCallout();
+      this.ui.showExplainHint(true);
+    }
+
+    _cancelHoverTimers() {
+      if (this._hoverTimer) { clearTimeout(this._hoverTimer); this._hoverTimer = null; }
+      if (this._hoverClearTimer) { clearTimeout(this._hoverClearTimer); this._hoverClearTimer = null; }
+      this._hoverPendingId = undefined;
+    }
+
+    /** ホバー(PC): 0.2秒その部品に留まったときだけ解説を表示する。同じ部品内の微動ではリセットしない。 */
+    _onExplainHover(group, point) {
       if (!this.explainOn || this.appState !== AppState.VIEWING) return;
       const def = group && group.userData && group.userData.partDef;
-      if (def && this.placed.has(def.id)) {
-        if (!this._explainTarget || this._explainTarget.def.id !== def.id) this._setExplainTarget(group, def);
-      } else {
-        this._clearExplainTarget();
+      const id = def && this.placed.has(def.id) ? def.id : null;
+
+      // すでに表示中の部品の上: 何もしない(点は固定、タイマーはリセットしない)
+      if (id && id === this._hoverShownId) {
+        if (this._hoverClearTimer) { clearTimeout(this._hoverClearTimer); this._hoverClearTimer = null; }
+        this._cancelPendingTimer();
+        return;
       }
+      if (id === null) {
+        // 部品から外れた: 待機中タイマーを破棄、表示中なら短い猶予を設けて消す(チラつき防止)
+        this._cancelPendingTimer();
+        if (this._hoverShownId && !this._hoverClearTimer) {
+          this._hoverClearTimer = setTimeout(() => {
+            this._hoverClearTimer = null;
+            this._clearExplainTarget();
+          }, 260);
+        }
+        return;
+      }
+      // 別の部品へ: 新しい200msタイマーを開始(既存待機と同じなら何もしない)
+      if (this._hoverClearTimer) { clearTimeout(this._hoverClearTimer); this._hoverClearTimer = null; }
+      if (id !== this._hoverPendingId) {
+        this._cancelPendingTimer();
+        this._hoverPendingId = id;
+        const g = this.groups[id];
+        const pt = point ? point.clone() : null;
+        this._hoverTimer = setTimeout(() => {
+          this._hoverTimer = null; this._hoverPendingId = undefined;
+          if (this.explainOn && this.appState === AppState.VIEWING && this.placed.has(id)) {
+            this._setExplainTarget(g, def, pt);
+          }
+        }, 200);
+      }
+    }
+    _cancelPendingTimer() {
+      if (this._hoverTimer) { clearTimeout(this._hoverTimer); this._hoverTimer = null; }
+      this._hoverPendingId = undefined;
     }
 
     /* ============================================================
        クリック: 注油・部品情報
        ============================================================ */
-    handlePartClick(partId) {
-      // 鑑賞中 + 解説ON: タップ/クリックで部品解説を表示(スマホ・タブレット対応)
+    handlePartClick(partId, point) {
+      // 鑑賞中 + 解説ON: タップ/クリックで部品解説を表示(タッチ端末対応。同時は1部品だけ)
       if (this.appState === AppState.VIEWING) {
         if (this.explainOn) {
           const part = this.parts.find((p) => p.id === partId);
           const g = this.groups[partId];
-          if (part && g) this._setExplainTarget(g, part);
+          // 解説対象外(例: 表側で風防以外)は反応させない
+          const allowed = this._explainTargetGroups().includes(g);
+          if (part && g && allowed) {
+            this._cancelHoverTimers();
+            this._setExplainTarget(g, part, point || null);
+          }
         }
         return;
       }
@@ -676,6 +779,7 @@
       this.busy = true;
       this.appState = AppState.CINEMATIC;
       this.ui.hideCTA();
+      this.ui.showRecustomize(false);       // 選び直す導線を確実に閉じる
       const cam = this.sceneMgr;
       this._tween({
         dur: 1.4, ease: easeInOut,
@@ -730,26 +834,44 @@
         this._beginViewing("front");
       } else if (act === "movement") {
         this._beginViewing("back");
-      } else if (act === "menu") {
-        this._goToCompletedAssembly();
       }
     }
 
-    /* 完成後の「組立画面へ戻る」ボタン群(7-5) */
+    /* 完成後メニューへ直接戻る共通処理。
+       時計鑑賞・ムーブメント鑑賞の両方から同じ挙動で呼べる。 */
+    _returnToFinalMenu() {
+      // 1 解説表示をOFF
+      this.explainOn = false;
+      this._cancelHoverTimers();
+      this.sceneMgr.enableHover(false);
+      this.sceneMgr.setClickTargets([]);
+      this.ui.setExplainButton(false);
+      this.ui.showExplainHint(false);
+      // 2 表示中の説明ボックス・点・L字線・ハイライトを消す
+      this.ui.hideCallout();
+      this._explainTarget = null; this._hoverShownId = null; this._hoverPendingId = undefined;
+      // 3 拡大鑑賞状態を解除
+      this.magnified = false;
+      this.ui.setZoomLabel(false);
+      // 4 時計を完成時の基準位置・基準倍率へ
+      this.finalState = null;
+      this.busy = false;
+      this.appState = AppState.COMPLETED;
+      this.watch.rotation.x = 0;
+      this.ui.hideViewControls();
+      this.ui.hideCompletedControls();
+      this.sceneMgr.setCinemaBackground();
+      this._setFinalCamera();
+      // 5 完成後メニューを再表示
+      this.ui.showFinalMenu(this.data.caliber || "Cal.02 Automatic");
+    }
+
+    /* 完成後のコントロール(互換用: 現在は未使用だがボタンが残っても安全に動く) */
     completedAction(act) {
       if (act === "restart") { this.restart(); return; }
       if (act === "view") { this._beginViewing("front"); return; }
       if (act === "movement") { this._beginViewing("back"); return; }
-      if (act === "postmenu") {
-        // 完成後メニュー(5項目)を再表示
-        this.appState = AppState.COMPLETED;
-        this.magnified = false;
-        this.ui.hideCompletedControls();
-        this.ui.enterCinemaMode();
-        this.sceneMgr.setCinemaBackground();
-        this._setFinalCamera();
-        this.ui.showFinalCaption(this.data.caliber || "Cal.02 Automatic");
-      }
+      if (act === "postmenu") { this._returnToFinalMenu(); }
     }
 
     /* 鑑賞モード開始(表側 / 裏側) */
@@ -757,20 +879,23 @@
       this.appState = AppState.VIEWING;
       this.magnified = false;
       this.finalState = null;
+      this.viewSide = (side === "back") ? "back" : "front";
       // 解説ONは鑑賞ごとにリセットしておく
       this.explainOn = false;
+      this._cancelHoverTimers();
       this.ui.setExplainButton(false);
       this.ui.showExplainHint(false);
       this.ui.hideCallout();
+      this.ui.setZoomLabel(false);
       this.sceneMgr.enableHover(false);
-      this._explainTarget = null;
+      this._explainTarget = null; this._hoverShownId = null; this._hoverPendingId = undefined;
       const cam = this.sceneMgr;
       this.ui.enterCinemaMode();            // 通常UIは隠す
       this.ui.hideFinalCaption();
       this.ui.hideCompletedControls();
       this.sceneMgr.setCinemaBackground();
       cam.target.set(0, 3, 0);
-      if (side === "front") {
+      if (this.viewSide === "front") {
         this.watch.rotation.x = 0;
         cam.orbitGoal.phi = 0.5; cam.orbitGoal.theta = 0.06; cam.orbitGoal.radius = this._fitRadius();
       } else {
@@ -780,55 +905,32 @@
       this.ui.showViewControls();
     }
 
-    /* 鑑賞ツールバーのボタン(表/裏/拡大/戻る) */
+    /* 鑑賞ツールバーのボタン(表/裏/拡大/解説/完成後メニューを再表示) */
     viewAction(act) {
       const cam = this.sceneMgr;
       if (act === "front") {
+        this.viewSide = "front";
         this.watch.rotation.x = 0;
         cam.orbitGoal.phi = 0.5; cam.orbitGoal.theta = 0.06;
         cam.orbitGoal.radius = this.magnified ? this._fitRadius() * 0.62 : this._fitRadius();
+        this._refreshExplainTargets();
       } else if (act === "back") {
+        this.viewSide = "back";
         this.watch.rotation.x = Math.PI;
         cam.orbitGoal.phi = 0.62; cam.orbitGoal.theta = 0.35;
         cam.orbitGoal.radius = (this.magnified ? this._fitRadius() * 0.62 : this._fitRadius()) + 6;
+        this._refreshExplainTargets();
       } else if (act === "zoom") {
         this.magnified = !this.magnified;
         const base = this._fitRadius();
-        // 画面外へ消えないよう範囲を制限
+        // 画面外へ消えないよう範囲を制限。解説は拡大中もそのまま使える。
         cam.orbitGoal.radius = this.magnified ? Math.max(42, base * 0.6) : base;
         this.ui.setZoomLabel(this.magnified);
       } else if (act === "explain") {
         this.toggleExplain();
       } else if (act === "menu") {
-        this._goToCompletedAssembly();
+        this._returnToFinalMenu();
       }
-    }
-
-    /* 完成済みの時計を保持したまま、通常の組立画面UI(完成後版)へ戻す */
-    _goToCompletedAssembly() {
-      this.appState = AppState.VIEWING;
-      this.magnified = false;
-      this.finalState = null;
-      this.busy = false;
-      // 解説ONを解除
-      this.explainOn = false;
-      this.sceneMgr.enableHover(false);
-      this.ui.setExplainButton(false);
-      this.ui.showExplainHint(false);
-      this.ui.hideCallout();
-      this._explainTarget = null;
-      this.watch.rotation.x = 0;
-      this.ui.hideViewControls();
-      this.ui.hideFinalCaption();
-      this.ui.exitCinemaMode();
-      this.sceneMgr.setNormalBackground();
-      this._setFinalCamera();
-      this.ui.enterCompletedAssembly();     // topbar表示・モード切替は無効・トレイ非表示
-      this.ui.showCompletedControls();
-      this.ui.setModeToggleEnabled(false,
-        "完成後にモードを変更するには「モードを変えて最初から作る」を選択してください。");
-      this.ui.showPartInfoText("完成", "Completed",
-        "Cal.02 は完成しています。時計を鑑賞するか、最初から作り直すことができます。");
     }
 
     _updateFinal(dt) {
@@ -1027,8 +1129,22 @@
       this._updateClock();
       this._setFinalCamera();
       this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
-      // 完成後の組立画面(7-5)へ
-      this._goToCompletedAssembly();
+      // 復元後はいきなり鑑賞・途中カメラへ入らず、完成後メニューを最初に表示する
+      this.viewSide = "front";
+      this._returnToFinalMenu();
+    }
+
+    /* ============================================================
+       [\u30c1\u30a7\u30c3\u30af\u7528] \u5148\u982d\u304b\u3089\u5b8c\u6210\u5f8c\u30e1\u30cb\u30e5\u30fc\u3078\u4e00\u767a\u3067\u98db\u3076\n       \u2014 \u5168\u90e8\u54c1\u3092\u5373\u5ea7\u306b\u914d\u7f6e\u3057\u3001\u5b8c\u6210\u72b6\u614b\u3092\u78ba\u5b9a\u3057\u3066\u5b8c\u6210\u5f8c\u30e1\u30cb\u30e5\u30fc\u3092\u8868\u793a\u3059\u308b\u3002\n       ============================================================ */
+    jumpToCompleteMenu() {
+      // \u9032\u884c\u4e2d\u306e\u30bf\u30a4\u30de\u30fc\u30fb\u6f14\u51fa\u3092\u6b62\u3081\u308b\n      this.finalState = null;
+      this._cancelHoverTimers && this._cancelHoverTimers();
+      this.busy = false;
+      this.completed = true;
+      this.appState = AppState.COMPLETED;
+      this.activeChapter = "case";
+      this._enterCompletedRestore();
+      this._save();
     }
 
     /* ============================================================
@@ -1272,7 +1388,7 @@
       // 完成シネマティック
       if (this.finalState) this._updateFinal(dt);
 
-      // 鑑賞/完成演出中の上品な演出(ごく稀な流れ星のみ。画面をなぞる光帯は廃止済み)
+      // 鑑賞/完成演出中の上品な演出(ごく稀な流れ星のみ)
       if (this.appState === AppState.VIEWING || this.appState === AppState.CINEMATIC || this.finalState) {
         this._starT += dt;
         if (this._starT >= this._starNext) {
@@ -1280,7 +1396,7 @@
           this.ui.triggerShootingStar();
         }
       }
-      // 解説ONの点＋線＋ボックスを部品に追従させる
+      // 解説ONの点＋ボックスを部品に追従させる
       if (this.explainOn && this._explainTarget) this._updateCalloutPos();
     }
 
