@@ -96,6 +96,8 @@
       this.pendingVerify = null; // 中間動作確認の待ち {partId, cfg}
       this.verifyAnim = null;    // 動作確認アニメーション
       this.specChosen = false;   // 組立前の仕様選択を済ませたか
+      this.trayOrder = {};       // Exam Mode: 章ごとのトレイ表示順(シャッフル結果を保存)
+      this._demoMode = false;    // [DEV] 完成確認デモ中か(通常保存を汚さない)
 
       /* ---- 明示的な状態管理 ---- */
       this.appState = AppState.ASSEMBLING;
@@ -157,6 +159,9 @@
       });
       PF.disposeThumbnailer();
 
+      // 竜頭を巻真先端の軸へ正しく整列(固定座標ではなく巻真の幾何から算出)
+      this._alignCrownToStem();
+
       this._restore();
 
       // UI 配線
@@ -170,6 +175,9 @@
       this.ui.onViewAction = (act) => this.viewAction(act);
       this.ui.onCompletedAction = (act) => this.completedAction(act);
       this.ui.onUndo = () => this.undoLast();
+      // DEV DEMO BUTTON — 公開前に削除。完成状態をワンクリックで確認する。
+      const _devBtn = document.getElementById("dev-demo-btn");
+      if (_devBtn) _devBtn.addEventListener("click", () => this._toggleDemo());
       this.sceneMgr.onPartClick((group, point) => this.handlePartClick(group.userData.partDef.id, point));
       this.sceneMgr.onOilClick((isHit) => this.handleOilClick(isHit));
       this.sceneMgr.onHover((g, point) => this._onExplainHover(g, point));
@@ -350,6 +358,24 @@
       return !!part && (part.id === "stem" || part.id === "tsuzumiWheel" || part.id === "windingPinion");
     }
 
+    /* ============================================================
+       竜頭を巻真先端の軸へ整列する
+       固定座標で合わせず、巻真の先端ワールド座標・軸方向・竜頭幅から算出する。
+       巻真は +X 方向の軸。buildStem の先端(tip)は巻真中心から L/2 + 1.2 の位置にある。
+       竜頭の接続面(ローカル -幅/2)が巻真先端に一致するよう、
+       竜頭中心 = 巻真先端 + 軸方向 × 竜頭幅/2 とする。上下(Y)・前後(Z)は巻真軸に合わせる。
+       ============================================================ */
+    _alignCrownToStem() {
+      const stem = this.parts.find((p) => p.id === "stem");
+      const crown = this.parts.find((p) => p.id === "crown");
+      if (!stem || !crown) return;
+      const L = (stem.params && stem.params.length) || 13;
+      const tipX = stem.position[0] + L / 2 + 1.2;              // 巻真先端のX座標
+      const w = (crown.params && crown.params.width) || 2.6;    // 竜頭幅
+      // 竜頭中心 = 先端 + 軸方向(+X) × 幅/2。Y/Z は巻真軸と同じにして中心軸を一致させる。
+      crown.position = [tipX + w / 2, stem.position[1], stem.position[2]];
+    }
+
     _showAxisGuide(cur) {
       if (!this.axisGuide) return;
       this.axisGuide.position.set(cur.position[0], cur.position[1], cur.position[2]);
@@ -418,7 +444,7 @@
       const done = chParts.filter((p) => this.placed.has(p.id)).length;
 
       this.ui.setChapter(chInfo, done, chParts.length);
-      this.ui.renderTray(chParts, this.placed);
+      this.ui.renderTray(this._trayPartsFor(this.activeChapter, chParts), this.placed);
 
       // 中間動作確認待ち: 次の部品へ進む前に「動作を確認する」を促す
       if (this.pendingVerify) {
@@ -469,9 +495,10 @@
       this._updateOilGuide();
       this.ui.setUndoAvailable(this.canUndo());
       this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
-      // 仕様を確認・変更する導線。組立中(完成前)は常に開ける。取付済部品はロック表示。
+      // 仕様を確認・変更する導線。未完成かつベゼル未取付のときだけ表示(外観仕様が確定したら隠す)。
       this.ui.showRecustomize(
-        !this.busy && this.appState === AppState.ASSEMBLING && !this.pendingVerify && !this.pendingOil,
+        !this.busy && this.appState === AppState.ASSEMBLING && !this.pendingVerify && !this.pendingOil
+          && !this.completed && !this.placed.has("bezel"),
         () => this._openSpecReview()
       );
     }
@@ -480,23 +507,67 @@
     reopenCustomizer() { this._openSpecReview(); }
 
     /* ============================================================
-       解説ON: 点＋L字線＋説明ボックス(完成後の鑑賞中のみ)
+       トレイ表示順
+       Learning Mode: 正しい組立順(order順)のまま。
+       Exam Mode: 章開始時に1回だけシャッフルし trayOrder へ保存。
+       以降の再描画・一つ前へ戻る・画面サイズ変更・再読込でも同じ並びを復元する。
+       次の章は初めて訪れたときに新たにシャッフルされる。正解判定の順(order)は変えない。
+       ============================================================ */
+    _trayPartsFor(chId, chParts) {
+      if (this.mode !== "exam") return chParts;   // Learning: 正しい組立順
+      const ids = chParts.map((p) => p.id);
+      let order = this.trayOrder[chId];
+      const valid = Array.isArray(order) && order.length === ids.length && ids.every((id) => order.indexOf(id) >= 0);
+      if (!valid) {
+        order = this._shuffle(ids.slice());
+        this.trayOrder[chId] = order;
+        this._save();
+      }
+      const map = {};
+      chParts.forEach((p) => { map[p.id] = p; });
+      return order.map((id) => map[id]).filter(Boolean);
+    }
+    _shuffle(a) {
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = a[i]; a[i] = a[j]; a[j] = t;
+      }
+      return a;
+    }
+
+    /* ============================================================
+       解説ON: 点＋直線＋説明ボックス(完成後の鑑賞中のみ)
+       ░ 解説線は「部品上の点から説明ボックスまでの直線」。
        ============================================================ */
     /** 現在の鑑賞面で解説対象になる部品グループを返す。
-       表側は風防のみ / ムーブメント側は主要部品(movement章)。 */
+       表側は風防とベゼル / ムーブメント側は主要部品(movement章)。 */
     _explainTargetGroups() {
       let ids;
       if (this.viewSide === "front") {
-        ids = this.parts.filter((p) => p.type === "crystal" || p.id === "crown").map((p) => p.id);
+        ids = this.parts.filter((p) => p.type === "crystal" || p.type === "bezel").map((p) => p.id);
       } else {
         ids = this.chapterParts("movement").map((p) => p.id);
       }
       return ids.filter((id) => this.placed.has(id)).map((id) => this.groups[id]).filter(Boolean);
     }
 
-    /** 解説点のローカルアンカーを決める。該当パーツの中心を指す。
-       (中心は自転軸上にあるため、テンプ等が動いても点はぶれない) */
+    /** 解説点のローカルアンカーを決める。優先順位:
+       1. 部品に設定されたexplainAnchor(ローカル座標。これがあればBoundingBox中心は使わない)
+       2. ユーザーがクリックした部品表面の交点
+       3. BoundingBox中心
+       アンカーはローカル座標として保持し、描画時にlocalToWorldでワールドへ変換するので
+       部品の回転・移動に追従する(ローターの重り部分など)。 */
     _resolveAnchorLocal(group, def, intersectionPoint) {
+      // 1) 固定アンカー(ローターは外周の重り、ベゼルは外輪など)
+      if (def && def.explainAnchor) {
+        const a = def.explainAnchor;
+        return new THREE.Vector3(a.x || 0, a.y || 0, a.z || 0);
+      }
+      // 2) クリックした部品表面の交点
+      if (intersectionPoint) {
+        return group.worldToLocal(intersectionPoint.clone());
+      }
+      // 3) BoundingBox中心
       const box = new THREE.Box3().setFromObject(group);
       const c = box.getCenter(new THREE.Vector3());
       return group.worldToLocal(c);
@@ -507,19 +578,64 @@
       const anchorLocal = this._resolveAnchorLocal(group, def, intersectionPoint);
       this._explainTarget = { group, def, anchorLocal };
       this._hoverShownId = def.id;
+      this._applyHighlight(group);          // 解説対象を上品にハイライト
       this.ui.setCalloutContent(def);
       this.ui.showExplainHint(false);
       this._updateCalloutPos();
     }
 
     _clearExplainTarget() {
+      this._clearHighlight();               // 元の色・質感へ完全に戻す
       this._explainTarget = null;
       this._hoverShownId = null;
       this.ui.hideCallout();
       if (this.explainOn) this.ui.showExplainHint(true);
     }
 
-    /** 対象部品の画面位置を求め、点・L字線・ボックス位置を更新(毎フレーム)。
+    /* ============================================================
+       解説対象パーツのハイライト
+       ・元マテリアルをクローンしてemissiveを加え、元参照は保存して完全に復元。
+       ・キャッシュ共有マテリアルを直接変更せず、他部品に波及させない。
+       ・複数マテリアル対応。弱い明滅はupdate()で騆かす。
+       ============================================================ */
+    _mkHighlightMat(m) {
+      if (!m) return m;
+      const c = m.clone();
+      if (c.emissive) {
+        // 強すぎるネオンにはせず、上品な薄い金色の発光を加える
+        c.emissive = new THREE.Color(0x3a2c14);
+        if ("emissiveIntensity" in c) c.emissiveIntensity = 0.6;
+      }
+      // 元の色を 10～20% 明るく(質感は保つ)
+      if (c.color) c.color.offsetHSL(0, 0, 0.06);
+      c.__isHl = true;
+      return c;
+    }
+
+    _applyHighlight(group) {
+      this._clearHighlight();
+      const entries = [];
+      group.traverse((o) => {
+        if (!o.material) return;
+        const orig = o.material;
+        const hl = Array.isArray(orig) ? orig.map((m) => this._mkHighlightMat(m)) : this._mkHighlightMat(orig);
+        o.material = hl;
+        entries.push({ mesh: o, orig: orig, hl: hl });
+      });
+      this._highlight = { entries, t: 0 };
+    }
+
+    _clearHighlight() {
+      if (!this._highlight) return;
+      this._highlight.entries.forEach((e) => {
+        e.mesh.material = e.orig;            // 元マテリアル参照へ完全に復元
+        const arr = Array.isArray(e.hl) ? e.hl : [e.hl];
+        arr.forEach((m) => { if (m && m.__isHl && m.dispose) m.dispose(); });  // クローンを解放(累積しない)
+      });
+      this._highlight = null;
+    }
+
+    /** 対象部品の画面位置を求め、点・直線・ボックス位置を更新(毎フレーム)。
        回転・拡大してもアンカーを再計算して追従する。 */
     _updateCalloutPos() {
       const t = this._explainTarget;
@@ -562,6 +678,7 @@
       this.explainOn = !this.explainOn;
       this.ui.setExplainButton(this.explainOn);
       this._cancelHoverTimers();
+      this._clearHighlight();   // 切替時は前のハイライトを必ず元へ戻す
       if (this.explainOn) {
         const groups = this._explainTargetGroups();
         this.sceneMgr.setHoverTargets(groups);
@@ -583,6 +700,7 @@
     _refreshExplainTargets() {
       if (!this.explainOn) return;
       this._cancelHoverTimers();
+      this._clearHighlight();
       const groups = this._explainTargetGroups();
       this.sceneMgr.setHoverTargets(groups);
       this.sceneMgr.setClickTargets(groups);
@@ -785,8 +903,8 @@
       this.busy = true;
       this.ui.hideCTA();
       this.ui.setUndoAvailable(false);
-      this.ui.showMessage(cfg.title, "accent",
-        this.mode === "learning" ? cfg.guide : cfg.exam, 2200, { persistent: true });
+      this.ui.showVerifyMessage(cfg.title,
+        this.mode === "learning" ? cfg.guide : cfg.exam, "accent", { closable: false });
       this.verifyAnim = { t: 0, dur: cfg.dur || 2.8, cfg };
     }
 
@@ -839,7 +957,7 @@
       this.pendingVerify = null;
       this.busy = false;
       this._save();
-      this.ui.showMessage("Check Passed", "ok", "連動を確認しました。メッセージを閉じると次の工程へ進みます。", 1600, { persistent: true });
+      this.ui.showVerifyMessage("動作確認 OK", "連動を確認しました。次の工程へ進みます。「閉じる」で通知を消せます。", "ok");
       this._addTimer(setTimeout(() => this._refresh(), 400));
     }
 
@@ -1208,7 +1326,8 @@
       this.sceneMgr.setClickTargets([]);
       this.ui.setExplainButton(false);
       this.ui.showExplainHint(false);
-      // 2 表示中の説明ボックス・点・L字線・ハイライトを消す
+      // 2 表示中の説明ボックス・点・直線・ハイライトを消す
+      this._clearHighlight();
       this.ui.hideCallout();
       this._explainTarget = null; this._hoverShownId = null; this._hoverPendingId = undefined;
       // 3 拡大鑑賞状態を解除
@@ -1430,6 +1549,7 @@
        保存 / 復元(バージョン付き)
        ============================================================ */
     _save() {
+      if (this._demoMode) return;   // [DEV] デモ中は通常の進行保存を上書きしない
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           version: SAVE_VERSION,
@@ -1441,7 +1561,8 @@
           history: this.history,
           undoCount: this.undoCount,
           custom: this.custom,
-          specChosen: this.specChosen
+          specChosen: this.specChosen,
+          trayOrder: this.trayOrder
         }));
       } catch (e) {}
     }
@@ -1485,6 +1606,7 @@
         if (typeof s.undoCount === "number") this.undoCount = s.undoCount;
         if (s.custom && typeof s.custom === "object") Object.assign(this.custom, s.custom);
         if (s.specChosen) this.specChosen = true;
+        if (s.trayOrder && typeof s.trayOrder === "object") this.trayOrder = s.trayOrder;
         this._savedPlaced = Array.isArray(s.placedParts) ? s.placedParts : [];
       } catch (e) {
         try { localStorage.removeItem(STORAGE_KEY); } catch (e2) {}
@@ -1536,6 +1658,39 @@
       this.activeChapter = "case";
       this._enterCompletedRestore();
       this._save();
+    }
+
+    /* ============================================================
+       DEV DEMO BUTTON — 公開前に削除
+       完成状態を1クリックで表示する開発用機能。
+       通常の localStorage 進行データは汚さない(_save をデモ中は無効化)。
+       「デモを終了」で再読込し、元の進行データからそのまま復帰する。
+       ============================================================ */
+    _toggleDemo() {
+      if (this._demoMode) this._exitDemo();
+      else this._enterDemo();
+    }
+    _enterDemo() {
+      if (this._demoMode || this.busy) return;
+      // 通常保存を保護: これ以降 _save() は no-op(localStorage を書き換えない)
+      this._demoMode = true;
+      // 全パーツを完成状態として構築 → 反転 → 針同期 → 完成後メニュー表示
+      this.finalState = null;
+      this._cancelHoverTimers && this._cancelHoverTimers();
+      this.busy = false;
+      this.completed = true;
+      this.appState = AppState.COMPLETED;
+      this.activeChapter = "case";
+      this._enterCompletedRestore();
+      const b = document.getElementById("dev-demo-btn");
+      if (b) { b.textContent = "デモを終了"; b.classList.add("demo-on"); }
+      this.ui.showCalibrationCaption("DEMO — 完成状態プレビュー");
+    }
+    _exitDemo() {
+      // 元の進行データはデモ中に一切変更していないので、再読込でそのまま復帰する
+      this._demoMode = false;
+      this.appState = AppState.RESETTING;
+      location.reload();
     }
 
     /* ============================================================
@@ -1654,6 +1809,20 @@
       });
     }
 
+    /* 仕様選択の4ブロック定義(文字盤 / 針 / ベゼル / 竜頭)。showCustomizer へ渡す。 */
+    _specBlocks() {
+      return [
+        { key: "dial", title: "文字盤", en: "Dial", keys: ["dial", "dialIndex"],
+          icon: '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/></svg>' },
+        { key: "hands", title: "針", en: "Hands", keys: ["handColor", "handShape"],
+          icon: '<svg width="16" height="16" viewBox="0 0 16 16"><line x1="8" y1="13" x2="8" y2="3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="8" r="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>' },
+        { key: "bezel", title: "ベゼル", en: "Bezel", keys: ["bezel"],
+          icon: '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="2"/></svg>' },
+        { key: "crown", title: "竜頭", en: "Crown", keys: ["crown"],
+          icon: '<svg width="16" height="16" viewBox="0 0 16 16"><rect x="2.5" y="6.4" width="4" height="3.2" rx="0.8" fill="currentColor"/><rect x="6.6" y="4.4" width="6.4" height="7.2" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>' }
+      ];
+    }
+
     /* 仕様選択の全グループ定義(組立前選択と仕様確認の両方で共用) */
     _specGroups() {
       return [
@@ -1682,8 +1851,8 @@
           { value: "fluted", name: "コインエッジ", en: "Fluted", swatch: '<svg width="40" height="40" viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" fill="#191c22"/><circle cx="22" cy="22" r="18" fill="none" stroke="#dfe4ec" stroke-width="5" stroke-dasharray="2.2 2.4"/><circle cx="22" cy="22" r="14.5" fill="none" stroke="#969ca6" stroke-width="1"/></svg>' }
         ] },
         { key: "crown", label: "竜頭", en: "Crown", options: [
-          { value: "fluted", name: "メダリオン", en: "Fluted / Medallion", swatch: '<svg width="44" height="30" viewBox="0 0 44 30"><rect x="3" y="13" width="10" height="4" rx="1" fill="#8b909a"/><rect x="13" y="6" width="16" height="18" rx="2.5" fill="#aab0ba"/><g stroke="#6c737d" stroke-width="1"><line x1="16" y1="7" x2="16" y2="23"/><line x1="19.5" y1="7" x2="19.5" y2="23"/><line x1="23" y1="7" x2="23" y2="23"/><line x1="26.5" y1="7" x2="26.5" y2="23"/></g><circle cx="34" cy="15" r="5" fill="#c9a85f"/><circle cx="34" cy="15" r="5" fill="none" stroke="#e6d29a" stroke-width="1"/></svg>' },
-          { value: "cabochon", name: "カボション", en: "Cabochon", swatch: '<svg width="44" height="30" viewBox="0 0 44 30"><rect x="3" y="13" width="10" height="4" rx="1" fill="#8b909a"/><rect x="13" y="6" width="16" height="18" rx="2.5" fill="#aab0ba"/><g stroke="#6c737d" stroke-width="1"><line x1="16" y1="7" x2="16" y2="23"/><line x1="20" y1="7" x2="20" y2="23"/><line x1="24" y1="7" x2="24" y2="23"/></g><circle cx="33.5" cy="15" r="5.6" fill="#2f50ad"/><circle cx="33.5" cy="15" r="5.6" fill="none" stroke="#c9a85f" stroke-width="1.2"/><circle cx="31.8" cy="13.3" r="1.6" fill="rgba(255,255,255,0.6)"/></svg>' }
+          { value: "fluted", name: "メダリオン", en: "Fluted / Medallion", swatch: WatchSim.CrownArt.svg("fluted", 54, 26) },
+          { value: "cabochon", name: "カボション", en: "Cabochon", swatch: WatchSim.CrownArt.svg("cabochon", 54, 26) }
         ] }
       ];
     }
@@ -1705,10 +1874,11 @@
       this.ui.showCustomizer({
         title: "時計の仕様を選ぶ",
         sub: "Design Your Watch — 組立を始める前に仕様を決めます",
-        confirmLabel: "この仕様で組み立てを始める",
+        confirmLabel: "この仕様で\n組み立てを始める",
         preview: true,
         current: Object.assign({}, this.custom),
         groups: this._specGroups(),
+        blocks: this._specBlocks(),
         onConfirm: (sel) => {
           Object.assign(this.custom, sel);
           this._saveCustom();
@@ -1743,6 +1913,7 @@
         lockNote: "取付済みの部品は変更できません（🔒）。一つ前の工程へ戻して取り外すと再び変更できます。",
         current: Object.assign({}, this.custom),
         groups,
+        blocks: this._specBlocks(),
         onConfirm: (sel) => {
           const changed = {};
           Object.keys(sel).forEach((k) => { if (sel[k] !== this.custom[k]) changed[k] = sel[k]; });
@@ -1778,7 +1949,7 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           version: SAVE_VERSION, mode: this.mode, placedParts: [],
           currentChapter: "movement", running: false, completed: false,
-          history: [], undoCount: 0, custom: this.custom, specChosen: false
+          history: [], undoCount: 0, custom: this.custom, specChosen: false, trayOrder: {}
         }));
       } catch (e) {}
       location.reload();
@@ -1907,6 +2078,16 @@
           this._starT = 0; this._starNext = 20 + Math.random() * 26;   // 間隔もランダム・長め
           this.ui.triggerShootingStar();
         }
+      }
+      // 解説ハイライトの弱い明滅(ゆっくり・上品に)
+      if (this._highlight) {
+        this._highlight.t += dt;
+        const p = 0.5 + 0.5 * Math.sin(this._highlight.t * 2.2);
+        const inten = 0.38 + 0.32 * p;
+        this._highlight.entries.forEach((e) => {
+          const arr = Array.isArray(e.hl) ? e.hl : [e.hl];
+          arr.forEach((m) => { if (m && m.__isHl && "emissiveIntensity" in m) m.emissiveIntensity = inten; });
+        });
       }
       // 解説ONの点＋ボックスを部品に追従させる
       if (this.explainOn && this._explainTarget) this._updateCalloutPos();

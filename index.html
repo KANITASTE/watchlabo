@@ -34,6 +34,9 @@
       <button id="btn-exam" type="button">Exam Mode</button>
     </div>
 
+    <!-- 仕様を確認・変更するサブ導線。MODEのすぐ右横・同じ高さ。ベゼル取付前のみ表示(制御はassembly._refresh)。 -->
+    <button type="button" id="recustomize-btn" hidden>仕様を確認</button>
+
     <!-- プライマリCTA(章送り・動作確認など) -->
     <button id="cta-btn" type="button" hidden>ゼンマイを巻いて動作確認</button>
 
@@ -140,6 +143,9 @@
   <!-- ============ 中央メッセージ ============ -->
   <div id="message-layer"></div>
 
+  <!-- ============ 動作確認コメント専用レイヤー(persistent・下部中央・クリックでのみ閉じる) ============ -->
+  <div id="verify-layer"></div>
+
   <!-- ============ シネマティック演出レイヤー ============ -->
   <div id="cinema-caption"></div>
   <div id="calib-caption"></div>
@@ -169,7 +175,7 @@
     <button type="button" data-view="menu">完成後メニューを再表示</button>
   </div>
 
-  <!-- ============ 解説ON: ヒント + 点＋L字線＋説明ボックス ============ -->
+  <!-- ============ 解説ON: ヒント + 点＋直線＋説明ボックス ============ -->
   <div id="explain-hint" hidden>部品にカーソルを合わせる・タップすると解説が表示されます</div>
   <div id="explain-callout" hidden>
     <svg id="ec-svg" width="100%" height="100%"><polyline id="ec-line" points="" fill="none"></polyline></svg>
@@ -181,14 +187,16 @@
     </div>
   </div>
 
-  <!-- 文字盤・外装を選び直す導線(第2・第3章の組立中に表示) -->
-  <button type="button" id="recustomize-btn" hidden>仕様を確認・変更</button>
+  <!-- 文字盤・外装を選び直す導線は上部バー(MODEの右横)へ移動した。 -->
 
   <!-- ============ ごく稀な流れ星(完成背景・鑑賞背景の演出) ============ -->
   <div id="shooting-star"></div>
 
   <!-- ============ バージョン情報 ============ -->
   <div id="version-badge" title="現在のビルド">Cal.02 · v0.8.3 · Build 2026.07</div>
+
+  <!-- DEV DEMO BUTTON — 公開前に削除。完成状態を1クリックで確認する開発用ボタン。 -->
+  <button type="button" id="dev-demo-btn" title="開発用: 完成状態をプレビュー">デモ：完成状態を表示</button>
 
   <!-- ============ 完成後の組立画面コントロール(7-5) ============ -->
   <div id="completed-controls" hidden>

@@ -7,6 +7,62 @@
   "use strict";
   window.WatchSim = window.WatchSim || {};
 
+  /* ============================================================
+     竜頭アート(共通定義)
+     時計の側面から見た「横向き」の竜頭を1つの定義から描く。
+     仕様選択の見本(スウォッチ)・完成予想プレビューが同じ形を共有し、
+     3Dの竜頭(parts.js buildCrown)とも見た目を揃える。
+     構造: ケース側の短い接続軸 → 円筒本体 → 側面の細かい溝 →
+           金属側面ハイライト → 外側端面 → デザイン装飾。
+     style: "fluted"(メダリオン=溝＋端面の金装飾) / "cabochon"(青い石)
+     ============================================================ */
+  WatchSim.CrownArt = {
+    /** cx,cy 中心 / s 単位長(px)。接続軸は左(ケース側)、端面は右。 */
+    fragment(cx, cy, s, style) {
+      const X = (x) => (cx + x * s).toFixed(2);
+      const Y = (y) => (cy + y * s).toFixed(2);
+      const N = (v) => (v * s).toFixed(2);
+      let out = "";
+      // 1) ケース側へつながる短い接続軸(左)
+      out += '<rect x="' + X(-3.4) + '" y="' + Y(-0.55) + '" width="' + N(1.9) + '" height="' + N(1.1) + '" rx="' + N(0.3) + '" fill="#7f858f"/>';
+      // 2) 円筒状の竜頭本体(角丸長方形)
+      out += '<rect x="' + X(-1.7) + '" y="' + Y(-1.7) + '" width="' + N(3.4) + '" height="' + N(3.4) + '" rx="' + N(0.7) + '" fill="#b4bac4"/>';
+      // 金属の側面ハイライト(上の明るい帯)と下の陰
+      out += '<rect x="' + X(-1.6) + '" y="' + Y(-1.5) + '" width="' + N(3.2) + '" height="' + N(0.78) + '" rx="' + N(0.4) + '" fill="rgba(255,255,255,0.42)"/>';
+      out += '<rect x="' + X(-1.6) + '" y="' + Y(0.85) + '" width="' + N(3.2) + '" height="' + N(0.7) + '" rx="' + N(0.4) + '" fill="rgba(0,0,0,0.2)"/>';
+      // 3) 側面の細かい溝(縦線・均一・ギザギザを大きくしすぎない)
+      const ridges = style === "cabochon" ? 5 : 7;
+      out += '<g stroke="#6c737d" stroke-width="' + N(0.12) + '" stroke-linecap="round">';
+      for (let i = 0; i < ridges; i++) {
+        const gx = -1.35 + (2.7 * i) / (ridges - 1);
+        out += '<line x1="' + X(gx) + '" y1="' + Y(-1.35) + '" x2="' + X(gx) + '" y2="' + Y(1.35) + '"/>';
+      }
+      out += "</g>";
+      // 4) 外側端面(右)= 端の楕円。装飾は本体の中へ収める(串に刺した形にしない)。
+      if (style === "cabochon") {
+        // 竜頭本体の外側に小さな半球状の石(本体と自然に接続)
+        out += '<ellipse cx="' + X(1.7) + '" cy="' + Y(0) + '" rx="' + N(0.5) + '" ry="' + N(1.5) + '" fill="#9aa0aa"/>';
+        out += '<circle cx="' + X(1.86) + '" cy="' + Y(0) + '" r="' + N(0.98) + '" fill="#274a9e"/>';
+        out += '<circle cx="' + X(1.86) + '" cy="' + Y(0) + '" r="' + N(0.98) + '" fill="none" stroke="#c9a85f" stroke-width="' + N(0.16) + '"/>';
+        out += '<circle cx="' + X(1.6) + '" cy="' + Y(-0.4) + '" r="' + N(0.3) + '" fill="rgba(255,255,255,0.7)"/>';
+      } else {
+        // メダリオン: 外側端面へ小さな円形装飾(本体の中へ収める)
+        out += '<ellipse cx="' + X(1.7) + '" cy="' + Y(0) + '" rx="' + N(0.5) + '" ry="' + N(1.5) + '" fill="#c6ccd4"/>';
+        out += '<circle cx="' + X(1.76) + '" cy="' + Y(0) + '" r="' + N(0.9) + '" fill="#c9a85f"/>';
+        out += '<circle cx="' + X(1.76) + '" cy="' + Y(0) + '" r="' + N(0.9) + '" fill="none" stroke="#e6d29a" stroke-width="' + N(0.14) + '"/>';
+      }
+      return out;
+    },
+    /** 見本用の独立SVG(横向き) */
+    svg(style, w, h) {
+      w = w || 58; h = h || 26;
+      const s = h / 4.6;
+      const cx = w * 0.46, cy = h * 0.5;
+      return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+        this.fragment(cx, cy, s, style) + "</svg>";
+    }
+  };
+
   class UI {
     constructor() {
       const $ = (id) => document.getElementById(id);
@@ -29,6 +85,7 @@
         ghost: $("drag-ghost"),
         ghostImg: document.querySelector("#drag-ghost img"),
         msgLayer: $("message-layer"),
+        verifyLayer: $("verify-layer"),
         modeBadge: $("mode-badge"),
         cta: $("cta-btn"),
         resetBtn: $("reset-btn"),
@@ -378,14 +435,8 @@
           bezelSVG = '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R + 3) + '" fill="none" stroke="' + bz.o + '" stroke-width="6"/><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="' + bz.i + '" stroke-width="1.2"/>';
         }
 
-        // 竜頭(横から見た形状)
-        const crownX = cx + R + 4;
-        let crownSVG;
-        if (s.crown === "cabochon") {
-          crownSVG = '<rect x="' + crownX + '" y="' + (cy - 6) + '" width="10" height="12" rx="2" fill="#aab0ba"/><circle cx="' + (crownX + 11) + '" cy="' + cy + '" r="4.6" fill="#2f50ad" stroke="#c9a85f" stroke-width="1"/><circle cx="' + (crownX + 9.4) + '" cy="' + (cy - 1.6) + '" r="1.3" fill="rgba(255,255,255,0.6)"/>';
-        } else {
-          crownSVG = '<rect x="' + crownX + '" y="' + (cy - 6) + '" width="10" height="12" rx="2" fill="#aab0ba"/><g stroke="#6c737d" stroke-width="0.9"><line x1="' + (crownX + 2.5) + '" y1="' + (cy - 5) + '" x2="' + (crownX + 2.5) + '" y2="' + (cy + 5) + '"/><line x1="' + (crownX + 5) + '" y1="' + (cy - 5) + '" x2="' + (crownX + 5) + '" y2="' + (cy + 5) + '"/><line x1="' + (crownX + 7.5) + '" y1="' + (cy - 5) + '" x2="' + (crownX + 7.5) + '" y2="' + (cy + 5) + '"/></g><circle cx="' + (crownX + 11) + '" cy="' + cy + '" r="4.1" fill="#c9a85f"/>';
-        }
+        // 竜頭(横から見た形状・CrownArt共通定義から生成。見本・3Dと形を揃える)
+        const crownSVG = WatchSim.CrownArt.fragment(cx + R + 6, cy, 3.4, s.crown === "cabochon" ? "cabochon" : "fluted");
 
         // スモールセコンド(3時)
         const ssx = cx + R * 0.44;
@@ -393,7 +444,7 @@
 
         return '<svg width="160" height="150" viewBox="0 0 160 150">' +
           '<defs><radialGradient id="spdg" cx="40%" cy="34%" r="72%"><stop offset="0" stop-color="' + dg[0] + '"/><stop offset="1" stop-color="' + dg[1] + '"/></radialGradient></defs>' +
-          '<line x1="' + (cx + R - 2) + '" y1="' + cy + '" x2="' + (cx + R + 6) + '" y2="' + cy + '" stroke="#8b909a" stroke-width="5"/>' +
+          '<line x1="' + (cx + R - 2) + '" y1="' + cy + '" x2="' + (cx + R + 3) + '" y2="' + cy + '" stroke="#8b909a" stroke-width="5"/>' +
           crownSVG + bezelSVG +
           '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R - 1) + '" fill="url(#spdg)"/>' +
           idx + subdial +
@@ -411,7 +462,8 @@
         }
       };
 
-      (spec.groups || []).forEach((gp) => {
+      // 1グループ(例: 文字盤の色)のDOMを組み立てて返す
+      const renderGroup = (gp) => {
         const gEl = document.createElement("div");
         gEl.className = "custom-group" + (gp.locked ? " locked" : "");
         const h = document.createElement("h4");
@@ -442,12 +494,53 @@
           opts.appendChild(b);
         });
         gEl.appendChild(opts);
-        groupTarget.appendChild(gEl);
-      });
+        return gEl;
+      };
+
+      // ブロック(文字盤 / 針 / ベゼル / 竜頭)ごとに区切って描画する。
+      // spec.blocks が無ければ従来どおりグループを平坦に並べる。
+      if (spec.blocks && spec.blocks.length) {
+        const byKey = {};
+        (spec.groups || []).forEach((g) => { byKey[g.key] = g; });
+        spec.blocks.forEach((bl) => {
+          const keys = (bl.keys || []).filter((k) => byKey[k]);
+          if (!keys.length) return;
+          const anyLocked = keys.some((k) => byKey[k].locked);
+          const blockEl = document.createElement("div");
+          blockEl.className = "spec-block" + (anyLocked ? " locked" : "");
+          const head = document.createElement("div");
+          head.className = "sb-head";
+          head.innerHTML =
+            '<span class="sb-icon">' + (bl.icon || "") + "</span>" +
+            '<span class="sb-title">' + bl.title + "</span>" +
+            (bl.en ? '<span class="sb-en">' + bl.en + "</span>" : "") +
+            (anyLocked ? '<span class="sb-lock">🔒</span>' : "");
+          blockEl.appendChild(head);
+          const bodyEl = document.createElement("div");
+          bodyEl.className = "sb-body";
+          keys.forEach((k) => bodyEl.appendChild(renderGroup(byKey[k])));
+          blockEl.appendChild(bodyEl);
+          groupTarget.appendChild(blockEl);
+        });
+      } else {
+        (spec.groups || []).forEach((gp) => groupTarget.appendChild(renderGroup(gp)));
+      }
       updatePreview();
 
       // 決定ボタン。左カラム(プレビュー側)へ寄せ、常に見えるようにする。
-      this.el.customConfirm.textContent = spec.confirmLabel || "この仕様で仕立てる";
+      // confirmLabel に改行(\n)があれば明示的に複数行バタンとして描画(自動改行に任せない)。
+      const cLabel = spec.confirmLabel || "この仕様で仕立てる";
+      if (cLabel.indexOf("\n") >= 0) {
+        this.el.customConfirm.innerHTML = "";
+        cLabel.split("\n").forEach((ln) => {
+          const sp = document.createElement("span");
+          sp.className = "cc-line";
+          sp.textContent = ln;
+          this.el.customConfirm.appendChild(sp);
+        });
+      } else {
+        this.el.customConfirm.textContent = cLabel;
+      }
       this.el.customConfirm.onclick = () => { ov.hidden = true; spec.onConfirm && spec.onConfirm(sel); };
       if (twoCol && leftCol) leftCol.appendChild(this.el.customConfirm);
       else if (card) card.appendChild(this.el.customConfirm);
@@ -492,10 +585,23 @@
        opts.persistent = true のときは自動消去せず、クリックで閉じる(重要な説明・動作確認結果用)。
        ------------------------------------------------------------ */
     showMessage(text, kind = "ok", sub = "", duration = 1500, opts = {}) {
-      const persistent = !!opts.persistent;
+      // 再操作が必要な警告(error)は必ずpersistent(自動で消えない・「閉じる」ボタンでのみ閉じる)。
+      // 成功・軽い案内(ok/accent/oil)は従来どおり自動消去。
+      const persistent = !!opts.persistent || kind === "error";
+
+      // 同じ警告が連続発生した場合: 何枚も重ねず、既存の警告を軽い揺れで再通知する。
+      if (persistent) {
+        const existing = this.el.msgLayer.querySelector(".msg.persistent");
+        if (existing && existing.dataset.mtext === text && existing.dataset.msub === (sub || "")) {
+          existing.classList.remove("shake"); void existing.offsetWidth; existing.classList.add("shake");
+          return;
+        }
+      }
+
       this.el.msgLayer.innerHTML = "";
       const div = document.createElement("div");
       div.className = "msg" + (kind && kind !== "ok" ? " " + kind : "") + (persistent ? " persistent" : "");
+      div.dataset.mtext = text; div.dataset.msub = sub || "";
       const main = document.createElement("span");
       main.className = "msg-main";
       main.textContent = text;
@@ -507,21 +613,57 @@
         div.appendChild(s);
       }
       if (persistent) {
-        // 自動消去せず、ユーザーが読んでから閉じる。背景クリックでは消えない。
-        const hint = document.createElement("span");
-        hint.className = "msg-dismiss";
-        hint.textContent = "クリックして閉じる";
-        div.appendChild(hint);
+        // 自動では消えない。背景クリック・hover・本体クリックでは閉じず、
+        // 専用の「閉じる」ボタンでのみ閉じる。
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "msg-dismiss";
+        btn.textContent = "閉じる";
+        btn.addEventListener("click", (e) => { e.stopPropagation(); if (div.parentNode) div.remove(); });
+        div.appendChild(btn);
         div.style.pointerEvents = "auto";
-        div.style.cursor = "pointer";
         div.style.animation = "msg-appear 0.5s var(--ease) forwards";
-        div.addEventListener("click", () => { if (div.parentNode) div.remove(); });
       } else {
         div.style.animationDuration = duration + "ms";
         setTimeout(() => { if (div.parentNode) div.remove(); }, duration + 60);
       }
       this.el.msgLayer.appendChild(div);
     }
+
+    /* ------------------------------------------------------------
+       動作確認専用の常設メッセージ(persistent)
+       通常通知(showMessage)とは別レイヤー。マウスオーバー・hover通知では消えず、
+       クリックしたときだけ閉じる。画面下部中央(トレイの少し上)に小さく表示。
+       ------------------------------------------------------------ */
+    showVerifyMessage(text, sub = "", kind = "accent", opts = {}) {
+      const layer = this.el.verifyLayer;
+      if (!layer) { this.showMessage(text, kind, sub, 2200, { persistent: true }); return; }
+      const closable = opts.closable !== false;   // 既定で「閉じる」ボタンを付ける
+      layer.innerHTML = "";               // verify専用レイヤー。通常通知(msgLayer)とは分離。
+      const div = document.createElement("div");
+      div.className = "vmsg" + (kind && kind !== "ok" ? " " + kind : "");
+      const main = document.createElement("div");
+      main.className = "vmsg-main";
+      main.textContent = text;
+      div.appendChild(main);
+      if (sub) {
+        const s = document.createElement("div");
+        s.className = "vmsg-sub";
+        s.textContent = sub;
+        div.appendChild(s);
+      }
+      if (closable) {
+        const close = document.createElement("button");
+        close.type = "button";
+        close.className = "vmsg-close";
+        close.textContent = "閉じる";
+        // 「閉じる」ボタンでのみ閉じる。本体・背景・hoverでは閉じず、自動でも閉じない。
+        close.addEventListener("click", (e) => { e.stopPropagation(); if (div.parentNode) div.remove(); });
+        div.appendChild(close);
+      }
+      layer.appendChild(div);
+    }
+    hideVerifyMessage() { if (this.el.verifyLayer) this.el.verifyLayer.innerHTML = ""; }
 
     /* ------------------------------------------------------------
        シネマティック

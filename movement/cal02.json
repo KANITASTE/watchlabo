@@ -1284,6 +1284,11 @@
         "outer": 30,
         "inner": 27,
         "height": 0.6
+      },
+      "explainAnchor": {
+        "x": 24,
+        "y": 6.9,
+        "z": -14
       }
     }
   ]

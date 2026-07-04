@@ -122,7 +122,7 @@ body {
    文字盤側を組み立てる / ケースを組み立てる / Cal.02を起動する)。
    MODE表記のすぐ下・画面中央へ固定表示する(共通CTAコンテナ)。 */
 #cta-btn {
-  position: fixed; left: 50%; top: 104px; transform: translateX(-50%); z-index: 38;
+  position: fixed; left: 50%; top: 158px; transform: translateX(-50%); z-index: 38;
   max-width: min(90vw, 360px);
   appearance: none;
   border: 1px solid rgba(205, 172, 106, 0.7);
@@ -155,7 +155,7 @@ body {
 body.cinema #cta-btn { display: none !important; }
 /* 狭い画面: MODEバッジ位置に合わせて少し上へ */
 @media (max-width: 960px) {
-  #cta-btn { top: 92px; font-size: 14px; padding: 11px 22px; }
+  #cta-btn { top: 146px; font-size: 14px; padding: 11px 22px; }
 }
 
 /* ---- 仕様選択: 完成予想プレビュー(SVG) ---- */
@@ -364,6 +364,80 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
   #custom-card.two-col .custom-col-left { position: static; }
   #custom-card.two-col .custom-col-right { max-height: none; overflow: visible; }
 }
+/* ---- 仕様選択: 4ブロック(文字盤 / 針 / ベゼル / 竜頭)区切り ---- */
+.spec-block {
+  border: 1px solid var(--line); border-radius: 14px; padding: 11px 13px 12px;
+  background: rgba(255,255,255,0.025);
+  display: flex; flex-direction: column; gap: 9px;
+}
+.spec-block.locked { opacity: 0.92; }
+.spec-block .sb-head { display: flex; align-items: center; gap: 8px; }
+.spec-block .sb-icon { display: inline-flex; color: var(--gold); flex: 0 0 auto; }
+.spec-block .sb-icon svg { display: block; }
+.spec-block .sb-title { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
+.spec-block .sb-en { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-faint); }
+.spec-block .sb-lock { margin-left: auto; font-size: 11px; }
+.spec-block .sb-body { display: flex; flex-direction: column; gap: 10px; }
+.spec-block .custom-group { margin-bottom: 0; }
+.spec-block .custom-group h4 { margin-bottom: 5px; }
+.spec-block .custom-opts { gap: 6px; }
+.spec-block .custom-opt { flex: 1 1 60px; min-width: 56px; padding: 7px 6px 6px; }
+.spec-block .custom-swatch { width: 30px; height: 30px; }
+.spec-block .custom-swatch.svg { height: 28px; min-width: 40px; }
+.spec-block .custom-opt .co-name { font-size: 11px; }
+.spec-block .custom-opt .co-en { font-size: 8px; }
+/* PCは右カラムを2×2ブロックにして縦スクロールを避ける */
+#custom-card.two-col .custom-col-right { grid-template-columns: 1fr 1fr; gap: 12px; align-content: start; }
+@media (max-width: 720px) { #custom-card.two-col .custom-col-right { grid-template-columns: 1fr; } }
+
+/* ---- 動作確認コメント専用レイヤー(persistent・下部中央・クリックで閉じる) ---- */
+#verify-layer {
+  position: fixed; left: 50%; bottom: 158px; transform: translateX(-50%);
+  z-index: 62; width: min(460px, 88vw); display: flex; justify-content: center;
+  pointer-events: none;
+}
+#verify-layer:empty { display: none; }
+/* 動作確認コメント: 下のムーブメントがうっすら見える半透明表示。
+   要素全体のopacityではなく背景色のalphaで調整し、文字の可読性は維持する。 */
+.vmsg {
+  pointer-events: auto; width: 100%; text-align: center;
+  padding: 12px 18px 11px; border-radius: 14px;
+  background: rgba(12, 16, 22, 0.8);
+  -webkit-backdrop-filter: blur(6px) saturate(140%); backdrop-filter: blur(6px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  animation: msg-appear 0.4s var(--ease);
+}
+.vmsg.accent { border-color: rgba(205,172,106,0.42); }
+.vmsg::before { content: ""; display: block; width: 40px; height: 2px; border-radius: 2px; margin: 0 auto 8px; background: rgba(255,255,255,0.6); }
+.vmsg.accent::before { background: var(--gold); box-shadow: 0 0 14px rgba(205,172,106,0.6); }
+.vmsg-main { font-family: var(--font-display); font-size: 19px; letter-spacing: 0.08em; color: #e6c584; }
+.vmsg.ok .vmsg-main { color: #ffffff; }
+.vmsg-sub { font-size: 13px; line-height: 1.6; color: #d7dbe2; margin-top: 5px; }
+.vmsg-close {
+  appearance: none; margin-top: 9px; cursor: pointer; border: 1px solid var(--line-strong);
+  background: rgba(255,255,255,0.04); color: var(--text-dim); font-family: var(--font-ui);
+  font-size: 11px; letter-spacing: 0.14em; padding: 5px 16px; border-radius: 999px;
+  transition: all 0.3s var(--ease);
+}
+.vmsg-close:hover { color: var(--text); border-color: var(--gold); background: rgba(205,172,106,0.12); }
+body.cinema #verify-layer, body.completed-ui #verify-layer { display: none; }
+@media (max-width: 860px) { #verify-layer { bottom: 140px; } .vmsg-main { font-size: 17px; } .vmsg-sub { font-size: 12px; } }
+
+/* ---- DEV DEMO BUTTON(公開前に削除) ---- */
+#dev-demo-btn {
+  position: fixed; left: 14px; bottom: 42px; z-index: 47;
+  appearance: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
+  color: #a7bccf; background: rgba(18, 24, 32, 0.72);
+  border: 1px dashed rgba(120, 150, 180, 0.55); border-radius: 8px; padding: 7px 12px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  transition: all 0.3s var(--ease);
+}
+#dev-demo-btn::before { content: "DEV "; color: #6f8aa2; letter-spacing: 0.16em; }
+#dev-demo-btn:hover { color: #ddeaf7; border-color: rgba(150,180,210,0.85); }
+#dev-demo-btn.demo-on { color: #ffd9a0; border-color: rgba(205,172,106,0.7); border-style: solid; }
+
 .custom-title { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; color: var(--text); }
 .custom-sub { font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--gold); margin-top: 5px; margin-bottom: 14px; }
 .custom-group { margin-bottom: 13px; text-align: left; }
@@ -400,6 +474,7 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
   transition: all 0.3s var(--ease);
 }
 #custom-confirm:hover { background: linear-gradient(180deg, rgba(205,172,106,0.34), rgba(205,172,106,0.16)); box-shadow: 0 0 26px rgba(205,172,106,0.28); }
+/* \u7d44\u7acb\u958b\u59cb\u30dc\u30bf\u30f3\u306e2\u884c\u8868\u793a\u3002\u30d6\u30e9\u30a6\u30b6\u5e45\u306b\u3088\u308b\u81ea\u52d5\u6539\u884c\u306b\u4efb\u305b\u305a\u3001\n   HTML\u4e0a\u3067\u660e\u793a\u7684\u306b2\u884c\u3078\u5206\u3051\u308b\u3002\u5404\u884c\u306f\u4e2d\u592e\u63c3\u3048\u30fb\u884c\u9593\u306f\u63a7\u3048\u3081\u3002 */\n#custom-confirm .cc-line { display: block; text-align: center; line-height: 1.32; white-space: nowrap; }\n#custom-confirm .cc-line + .cc-line { margin-top: 1px; }
 .tool-icon {
   width: 30px; height: 30px; flex: 0 0 30px; position: relative;
   border-radius: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line);
@@ -541,14 +616,27 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
   0%   { opacity: 0; transform: scale(0.97); }
   100% { opacity: 1; transform: scale(1); }
 }
-.msg.persistent { cursor: pointer; }
-.msg.persistent:hover { border-color: rgba(255,255,255,0.28); }
-.msg .msg-dismiss {
-  margin-top: 6px; font-family: var(--font-ui); font-size: 11px;
-  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint);
-  border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px;
+/* 警告・重要な説明は自動消去せず、専用の「閉じる」ボタンでのみ閉じる(persistent)。
+   背景・hover・本体クリックでは閉じない。 */
+.msg.persistent { cursor: default; }
+.msg.persistent.shake { animation: msg-shake 0.42s var(--ease); }
+@keyframes msg-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
 }
-.msg.persistent:hover .msg-dismiss { color: var(--text-dim); border-color: var(--line-strong); }
+.msg .msg-dismiss {
+  appearance: none; cursor: pointer; margin-top: 10px;
+  font-family: var(--font-ui); font-size: 11px;
+  letter-spacing: 0.16em; color: var(--text-dim);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 18px;
+  transition: all 0.3s var(--ease);
+}
+.msg .msg-dismiss:hover { color: var(--text); border-color: var(--gold); background: rgba(205,172,106,0.12); }
+.msg.error .msg-dismiss:hover { border-color: #ff8177; background: rgba(255,122,112,0.12); }
 
 /* ============================================================
    シネマティック
@@ -790,7 +878,7 @@ body.completed-ui #cta-btn { display: none; }
 @media (max-width: 860px) {
   .brand-sub { display: none; }
   .brand-name { font-size: 14px; letter-spacing: 0.16em; }
-  #cta-btn { padding: 8px 14px; font-size: 12px; }
+  #cta-btn { padding: 8px 14px; font-size: 12px; top: 150px; }
   #mode-badge { top: 68px; font-size: 9px; }
   #panel-left { left: 12px; top: 100px; width: 224px; max-height: 44vh; padding: 16px; }
   #panel-right { right: 12px; top: 100px; width: 64px; padding: 10px; }
@@ -928,19 +1016,26 @@ body:not(.cinema) #shooting-star { display: none; }
 /* ============================================================
    仕様を選び直す導線ボタン(第2・第3章の組立中)
    ============================================================ */
+/* 上部操作群の一部。MODE(モード切替トグル)のすぐ右横に、MODEより少し小さい
+   控えめなサブ操作として並べる(CTAとは混同しない金色の淡い表示)。 */
 #recustomize-btn {
-  position: fixed; top: 158px; left: 50%; transform: translateX(-50%);
-  z-index: 29; appearance: none; cursor: pointer;
-  border: 1px solid rgba(205, 172, 106, 0.5);
-  background: linear-gradient(180deg, rgba(205,172,106,0.18), rgba(205,172,106,0.06));
-  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  appearance: none; cursor: pointer; flex: 0 0 auto;
+  border: 1px solid rgba(205, 172, 106, 0.42);
+  background: rgba(205, 172, 106, 0.08);
   color: var(--gold); font-family: var(--font-ui);
-  font-size: 12px; letter-spacing: 0.1em; padding: 8px 20px; border-radius: 999px;
-  transition: all 0.3s var(--ease);
+  font-size: 11px; letter-spacing: 0.05em; padding: 6px 13px; border-radius: 999px;
+  transition: all 0.3s var(--ease); white-space: nowrap;
 }
-#recustomize-btn:hover { background: linear-gradient(180deg, rgba(205,172,106,0.3), rgba(205,172,106,0.12)); box-shadow: 0 0 22px rgba(205,172,106,0.24); }
+#recustomize-btn::before { content: "\2699"; margin-right: 6px; font-size: 10px; opacity: 0.85; }
+#recustomize-btn:hover { background: rgba(205, 172, 106, 0.16); border-color: rgba(205, 172, 106, 0.7); }
 #recustomize-btn[hidden] { display: none; }
-@media (max-width: 860px) { #recustomize-btn { top: 138px; font-size: 11px; padding: 7px 14px; } }
+body.cinema #recustomize-btn, body.completed-ui #recustomize-btn { display: none !important; }
+@media (max-width: 860px) { #recustomize-btn { font-size: 10px; padding: 5px 10px; letter-spacing: 0; } #recustomize-btn::before { display: none; } }
+/* 横幅が足りない端末では上部枠外・中央上に折り返して表示する(MODEの下段扱い) */
+@media (max-width: 700px) {
+  #recustomize-btn { position: fixed; top: 96px; left: 50%; transform: translateX(-50%); z-index: 29;
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); background: rgba(205,172,106,0.12); }
+}
 
 /* ============================================================
    トップ導線(組み立て方 / Q&A)
@@ -973,7 +1068,7 @@ body.cinema #undo-btn, body.completed-ui #undo-btn { display: none !important; }
    教育用注記(短縮版・トップ画面)
    ============================================================ */
 #edu-note-short {
-  position: fixed; left: 22px; bottom: 168px; z-index: 18;
+  position: fixed; left: 22px; bottom: 168px; z-index: 22;
   max-width: 300px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
   padding: 11px 15px; border-radius: 13px;
   background: rgba(20, 21, 26, 0.55);
@@ -989,6 +1084,7 @@ body.cinema #undo-btn, body.completed-ui #undo-btn { display: none !important; }
 #edu-note-short .ens-more {
   font-size: 10px; letter-spacing: 0.1em; color: var(--gold); text-decoration: none;
   border-bottom: 1px solid rgba(205, 172, 106, 0.4); padding-bottom: 1px;
+  position: relative; z-index: 1; pointer-events: auto; cursor: pointer;
 }
 #edu-note-short .ens-more:hover { color: #e8cf95; }
 /* 完成演出・鑑賞中は注記を隠す(主役を邪魔しない) */
