@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q&amp;A — 独立時計師養成システム Cal.02</title>
+<meta name="description" content="独立時計師養成システム Cal.02 のよくある質問">
+<style>
+  :root{
+    --bg:#0a0806; --panel:rgba(20,21,26,0.6); --line:rgba(255,255,255,0.08);
+    --line-strong:rgba(255,255,255,0.16); --text:#eef0f3; --text-dim:#9aa0aa;
+    --text-faint:#606670; --accent:#6fb2ff; --gold:#cdac6a; --gold-soft:rgba(205,172,106,0.14);
+    --font-ui:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;
+    --font-display:"Didot","Bodoni 72","Bodoni MT","Hiragino Mincho ProN",Georgia,serif;
+    --ease:cubic-bezier(0.22,1,0.36,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:#0a0806;
+    background-image:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(205,172,106,0.06),transparent 60%),
+      linear-gradient(180deg,#0c0a08,#08070a 60%,#070609);
+    color:var(--text); font-family:var(--font-ui); -webkit-font-smoothing:antialiased;
+    line-height:1.7; padding-bottom:120px;
+  }
+  header.top{
+    position:sticky; top:0; z-index:30;
+    display:flex; align-items:center; gap:16px; padding:14px 24px;
+    background:rgba(7,7,9,0.72); -webkit-backdrop-filter:blur(22px) saturate(140%);
+    backdrop-filter:blur(22px) saturate(140%); border-bottom:1px solid var(--line);
+  }
+  .brand-name{font-family:var(--font-display); font-size:16px; letter-spacing:0.26em;}
+  .brand-sub{font-size:9px; letter-spacing:0.26em; color:var(--text-faint); text-transform:uppercase; margin-top:2px;}
+  .top .spacer{flex:1;}
+  .backlink{font-size:11px; letter-spacing:0.14em; color:var(--text-dim); text-decoration:none; padding:8px 16px; border:1px solid var(--line); border-radius:999px; transition:all .3s var(--ease); white-space:nowrap;}
+  .backlink:hover{color:var(--text); border-color:var(--line-strong);}
+  .wrap{max-width:820px; margin:56px auto 0; padding:0 24px;}
+  .page-kicker{font-size:10px; letter-spacing:0.4em; text-transform:uppercase; color:var(--gold);}
+  h1.page-title{font-family:var(--font-display); font-size:clamp(30px,5vw,46px); letter-spacing:0.02em; line-height:1.2; margin:12px 0 20px;}
+  .lede{font-size:15px; color:var(--text-dim); max-width:62ch; margin-bottom:36px;}
+  .edu-note{background:var(--gold-soft); border:1px solid rgba(205,172,106,0.28); border-radius:16px; padding:20px 22px; margin:0 0 44px; font-size:12.5px; line-height:1.85; color:var(--text-dim);}
+  .edu-note .en-h{font-size:9px; letter-spacing:0.3em; text-transform:uppercase; color:var(--gold); margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+  .edu-note .en-h::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--gold);}
+  /* アコーディオン */
+  .qa{display:flex; flex-direction:column; gap:10px;}
+  details{background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px); transition:border-color .3s var(--ease);}
+  details[open]{border-color:var(--line-strong);}
+  summary{list-style:none; cursor:pointer; padding:18px 22px; display:flex; align-items:flex-start; gap:14px; font-size:14.5px; font-weight:600; letter-spacing:0.01em; color:var(--text);}
+  summary::-webkit-details-marker{display:none;}
+  summary .qn{font-family:var(--font-display); font-size:14px; color:var(--gold); flex:none; min-width:26px; padding-top:1px;}
+  summary .qt{flex:1;}
+  summary .chev{flex:none; width:18px; height:18px; position:relative; margin-top:3px; transition:transform .3s var(--ease);}
+  summary .chev::before,summary .chev::after{content:""; position:absolute; top:8px; width:10px; height:2px; background:var(--text-faint); border-radius:1px;}
+  summary .chev::before{left:0; transform:rotate(45deg);}
+  summary .chev::after{right:0; transform:rotate(-45deg);}
+  details[open] summary .chev{transform:rotate(180deg);}
+  .ans{padding:0 22px 20px 62px; font-size:13px; line-height:1.85; color:var(--text-dim);}
+  .ans .term{color:var(--gold); font-style:normal;}
+  .cta-wrap{text-align:center; margin-top:56px;}
+  .cta{display:inline-block; text-decoration:none; border:1px solid rgba(205,172,106,0.5); background:linear-gradient(180deg,rgba(205,172,106,0.22),rgba(205,172,106,0.08)); color:var(--gold); font-size:14px; font-weight:600; letter-spacing:0.1em; padding:15px 44px; border-radius:999px; transition:all .35s var(--ease);}
+  .cta:hover{background:linear-gradient(180deg,rgba(205,172,106,0.34),rgba(205,172,106,0.16)); box-shadow:0 0 30px rgba(205,172,106,0.28);}
+  footer.foot{text-align:center; margin-top:56px; font-size:10px; letter-spacing:0.2em; color:var(--text-faint);}
+  @media(max-width:560px){ .ans{padding-left:22px;} summary{font-size:13.5px;} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <div class="brand-name">ATELIER HORLOGER</div>
+    <div class="brand-sub">独立時計師養成システム — Cal.02</div>
+  </div>
+  <div class="spacer"></div>
+  <a class="backlink" href="guide.html">組み立て方</a>
+  <a class="backlink" href="index.html">← 組立台へ戻る</a>
+</header>
+
+<div class="wrap">
+  <div class="page-kicker">Frequently Asked Questions</div>
+  <h1 class="page-title">Q&amp;A</h1>
+  <p class="lede">このシミュレーターについてよくいただく質問をまとめました。項目をタップすると回答が開きます。</p>
+
+  <div class="edu-note">
+    <div class="en-h">教育用シミュレーションについて</div>
+    本サイトは、機械式時計の基本構造、部品の役割、組立原理を学ぶための教育用シミュレーションです。表示されるムーブメント「Cal.02」は学習用に構成されたモデルであり、特定の実在製品を完全に再現したものではありません。実際の時計では、メーカー、キャリバー、手巻き・自動巻きなどの方式によって、部品形状、配置、機構、注油位置、工具、組立順序が異なる場合があります。本サイトの操作を、実物の時計の分解・修理手順として使用しないでください。
+  </div>
+
+  <div class="qa">
+    <details><summary><span class="qn">Q1</span><span class="qt">このサイトは実在する時計を再現していますか？</span><span class="chev"></span></summary>
+      <div class="ans">いいえ。特定の実在製品を完全に再現したものではありません。機械式時計に共通する基本構造をもとに、学習しやすいように構成した独自のモデル「Cal.02」を組み立てています。</div></details>
+
+    <details><summary><span class="qn">Q2</span><span class="qt">Cal.02とは何ですか？</span><span class="chev"></span></summary>
+      <div class="ans">このサイトのために用意した学習用の自動巻ムーブメント（機械式時計の中身）です。<span class="term">キャリバー</span>とは、ムーブメントの型式を指す言葉です。Cal.02は実在の製品名ではなく、教材上の呼び名です。</div></details>
+
+    <details><summary><span class="qn">Q3</span><span class="qt">実際の時計と部品や順番が違うことはありますか？</span><span class="chev"></span></summary>
+      <div class="ans">あります。メーカーやキャリバー、手巻き・自動巻きなどの方式によって、部品形状・配置・機構・注油位置・工具・組立順序は異なります。本サイトの順序は学習用に整理したもので、あらゆる時計に共通する唯一の正解ではありません。</div></details>
+
+    <details><summary><span class="qn">Q4</span><span class="qt">手巻きと自動巻きは何が違いますか？</span><span class="chev"></span></summary>
+      <div class="ans"><span class="term">手巻き</span>は竜頭（りゅうず）を指で回してゼンマイを巻きます。<span class="term">自動巻き</span>は腕の動きで<span class="term">ローター（回転錘）</span>が回り、その動きを歯車でゼンマイの巻き上げに変えます。Cal.02は自動巻きなので、切換車・減速車・ローターといった自動巻き用の部品が加わります。</div></details>
+
+    <details><summary><span class="qn">Q5</span><span class="qt">なぜ途中でムーブメントを反転するのですか？</span><span class="chev"></span></summary>
+      <div class="ans">機械式時計は、機械側（裏）と文字盤側（表）の両面に部品を組みます。片面の組立が終わったら、反対の面を作業するために向きを変えます。実際の作業でも、面を変えるたびにムーブメントを反転させます。</div></details>
+
+    <details><summary><span class="qn">Q6</span><span class="qt">注油位置はすべての時計で同じですか？</span><span class="chev"></span></summary>
+      <div class="ans">いいえ。注油する場所・油の種類・量は、時計ごとに決められています。本サイトでは代表的な軸受（<span class="term">ルビーの穴石</span>）への注油を学習用に示しています。実物では専用のオイルと基準に従う必要があります。</div></details>
+
+    <details><summary><span class="qn">Q7</span><span class="qt">部品を間違えて置いた場合はどうなりますか？</span><span class="chev"></span></summary>
+      <div class="ans">正しい位置に近づかないと部品は収まりません。学習モードでは「なぜ違うのか」を短く説明します。試験モードではガイドは出ませんが、間違った配置は成立しません。</div></details>
+
+    <details><summary><span class="qn">Q8</span><span class="qt">前の工程へ戻れますか？</span><span class="chev"></span></summary>
+      <div class="ans">はい。「一つ前の工程へ戻る」で、直前に完了した工程を1つずつ取り消せます。好きな部品だけを飛ばして外すことはできず、上に載っている部品を残したまま下の部品を外すこともできません。完成後は使えないため、その場合は「最初から作る」をお使いください。</div></details>
+
+    <details><summary><span class="qn">Q9</span><span class="qt">途中保存できますか？</span><span class="chev"></span></summary>
+      <div class="ans">進捗は自動で保存されます。ブラウザを閉じても、次に同じ端末・同じブラウザで開けば続きから再開できます。「RESET」または「最初から作る」で初期状態に戻せます。</div></details>
+
+    <details><summary><span class="qn">Q10</span><span class="qt">Learning ModeとExam Modeの違いは何ですか？</span><span class="chev"></span></summary>
+      <div class="ans"><span class="term">Learning Mode（学習モード）</span>はガイド・解説つきで学びながら組み立てます。<span class="term">Exam Mode（試験モード）</span>はガイド・解説なしで、知識だけで組み立てます。試験モードでは「一つ前へ戻る」を使った回数が記録されます。</div></details>
+
+    <details><summary><span class="qn">Q11</span><span class="qt">完成後に文字盤仕様を変更できますか？</span><span class="chev"></span></summary>
+      <div class="ans">文字盤の色・インデックス、針の仕上げ・形状、ベゼルや竜頭の意匠は、それぞれの組立工程の中で選べます。完成後の見た目を変えたい場合は「最初から作る」で作り直すと、仕様を選び直せます。</div></details>
+
+    <details><summary><span class="qn">Q12</span><span class="qt">スマートフォンでも利用できますか？</span><span class="chev"></span></summary>
+      <div class="ans">はい。PC・タブレット・スマートフォンに対応しています。スマホ・タブレットでは、部品カードを指でドラッグして配置し、解説はタップで表示します。ピンチで拡大縮小できます。</div></details>
+
+    <details><summary><span class="qn">Q13</span><span class="qt">このサイトを見れば実物の時計を修理できますか？</span><span class="chev"></span></summary>
+      <div class="ans">できません。本サイトは基本構造を学ぶための教材です。実物の時計の分解・修理には、専門的な知識・専用工具・設備・清浄な環境が必要です。大切な時計は時計技術者にご相談ください。</div></details>
+
+    <details><summary><span class="qn">Q14</span><span class="qt">なぜPDFマニュアルと工程が完全に同じではないのですか？</span><span class="chev"></span></summary>
+      <div class="ans">参考にしたマニュアルは手巻きムーブメント向けのもので、Cal.02（自動巻き）とは機構が異なります。共通する原則は取り入れつつ、Cal.02独自の自動巻き機構は別に構成しているため、順序が完全には一致しません。確証が持てない工程は無理に変更せず、学習用として整理しています。</div></details>
+    <details><summary><span class="qn">Q15</span><span class="qt">組立中に文字盤や竜頭を変更できますか？</span><span class="chev"></span></summary>
+      <div class="ans">まだ取り付けていない部品は変更できます。取り付け済みの部品は変更できません。<span class="term">一つ前の工程へ戻る</span>で取り外した場合、再び変更できることがあります。仕様は「仕様を確認・変更」から確認でき、取付済み項目には🔒が付きます。</div></details>
+
+    <details><summary><span class="qn">Q16</span><span class="qt">完成後にデザインを変えられますか？</span><span class="chev"></span></summary>
+      <div class="ans">完成後は変更できません。別の仕様で作る場合は「最初から作る」を選択してください。組立を始める前の仕様選択画面で、文字盤・針・ベゼル・竜頭をまとめて選べます。</div></details>
+
+    <details><summary><span class="qn">Q17</span><span class="qt">竜頭や巻芯の工程が実機と少し違うのはなぜですか？</span><span class="chev"></span></summary>
+      <div class="ans">本教材ではキーレスワークを ツヅミ車 → キチ車 → 巻芯 → 竜頭 の順に整理しています。<span class="term">実際の時計では、ケースに合わせて巻芯の長さ調整や再挿入を行う場合があります</span>が、本教材では簡略化し、竜頭付き巻芯をそのまま完成まで維持します。</div></details>
+  </div>
+
+  <div class="cta-wrap">
+    <a class="cta" href="index.html">組み立てを始める →</a>
+  </div>
+  <footer class="foot">CAL.02 AUTOMATIC · ATELIER HORLOGER</footer>
+</div>
+
+</body>
+</html>

@@ -118,22 +118,69 @@ body {
 .mode-toggle button:not(.active):hover { color: var(--text); }
 
 /* ---- CTAボタン ---- */
+/* プライマリ操作ボタン(動作を確認する / ゼンマイを巻いて動作確認 /
+   文字盤側を組み立てる / ケースを組み立てる / Cal.02を起動する)。
+   MODE表記のすぐ下・画面中央へ固定表示する(共通CTAコンテナ)。 */
 #cta-btn {
+  position: fixed; left: 50%; top: 104px; transform: translateX(-50%); z-index: 38;
+  max-width: min(90vw, 360px);
   appearance: none;
-  border: 1px solid rgba(205, 172, 106, 0.5);
-  background: linear-gradient(180deg, rgba(205,172,106,0.2), rgba(205,172,106,0.07));
-  color: var(--gold);
-  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
-  letter-spacing: 0.1em; padding: 9px 22px; border-radius: 999px;
-  cursor: pointer; transition: all 0.35s var(--ease);
-  animation: cta-appear 0.7s var(--ease);
+  border: 1px solid rgba(205, 172, 106, 0.7);
+  background: linear-gradient(180deg, rgba(205,172,106,0.34), rgba(205,172,106,0.12));
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  color: #f4e6c4;
+  font-family: var(--font-ui); font-size: 15px; font-weight: 700;
+  letter-spacing: 0.06em; line-height: 1.4; padding: 13px 26px; border-radius: 16px;
+  cursor: pointer; transition: all 0.3s var(--ease);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(205,172,106,0.15);
+  animation: cta-pulse 2.6s ease-in-out infinite;
+  white-space: nowrap;
+}
+#cta-btn::before {
+  content: "▶"; display: inline-block; margin-right: 9px; font-size: 11px;
+  color: var(--gold); transform: translateY(-1px);
 }
 #cta-btn:hover {
-  background: linear-gradient(180deg, rgba(205,172,106,0.32), rgba(205,172,106,0.14));
-  box-shadow: 0 0 26px rgba(205, 172, 106, 0.28);
+  background: linear-gradient(180deg, rgba(205,172,106,0.5), rgba(205,172,106,0.22));
+  box-shadow: 0 12px 36px rgba(0,0,0,0.5), 0 0 34px rgba(205, 172, 106, 0.4);
+  transform: translateX(-50%) translateY(-1px);
 }
 #cta-btn[hidden] { display: none; }
-@keyframes cta-appear { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 0 1px rgba(205,172,106,0.15); }
+  50%      { box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 26px rgba(205,172,106,0.42); }
+}
+@keyframes cta-appear { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%); } }
+/* 完成演出・鑑賞中はプライマリボタンを隠す */
+body.cinema #cta-btn { display: none !important; }
+/* 狭い画面: MODEバッジ位置に合わせて少し上へ */
+@media (max-width: 960px) {
+  #cta-btn { top: 92px; font-size: 14px; padding: 11px 22px; }
+}
+
+/* ---- 仕様選択: 完成予想プレビュー(SVG) ---- */
+.spec-preview { display: flex; flex-direction: column; align-items: center; }
+.spec-preview svg { display: block; width: 160px; height: 150px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.5)); }
+.sp-note { font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--text-faint); margin-top: 4px; text-align: center; }
+
+/* ---- 仕様選択: 現在の選択仕様一覧 ---- */
+.spec-summary {
+  width: 100%; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.spec-summary .ss-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.spec-summary .ss-k { font-size: 10px; letter-spacing: 0.12em; color: var(--text-faint); white-space: nowrap; }
+.spec-summary .ss-v { font-size: 12px; font-weight: 600; color: var(--text); text-align: right; }
+
+/* ---- 仕様確認・変更: ロック表示 ---- */
+.custom-locknote { font-size: 11px; line-height: 1.7; color: var(--text-dim);
+  background: rgba(205,172,106,0.08); border: 1px solid rgba(205,172,106,0.22);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 14px; }
+.custom-group.locked { opacity: 0.72; }
+.custom-group .lock-tag { margin-left: 10px; font-size: 9.5px; letter-spacing: 0.06em;
+  color: var(--gold); font-weight: 600; }
+.custom-opt.disabled { cursor: not-allowed; filter: grayscale(0.4); }
+.custom-opt.disabled:not(.sel) { opacity: 0.55; }
 
 #reset-btn {
   appearance: none; border: 1px solid var(--line); background: transparent;
@@ -142,19 +189,6 @@ body {
   transition: all 0.3s var(--ease);
 }
 #reset-btn:hover { color: var(--text-dim); border-color: var(--line-strong); }
-
-/* [チェック用] 完成後メニューへ飛ぶボタン — 常時右上に浮かせて、どの画面からでも押せる */
-#dev-jump-btn {
-  position: fixed; top: 10px; right: 12px; z-index: 120;
-  appearance: none; cursor: pointer;
-  border: 1px dashed rgba(205, 172, 106, 0.6);
-  background: rgba(205, 172, 106, 0.12);
-  color: var(--gold); font-family: var(--font-mono, monospace);
-  font-size: 10px; letter-spacing: 0.12em;
-  padding: 6px 12px; border-radius: 999px;
-  transition: all 0.3s var(--ease);
-}
-#dev-jump-btn:hover { background: rgba(205, 172, 106, 0.24); }
 
 /* ---- モードバッジ ---- */
 #mode-badge {
@@ -302,6 +336,34 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
   width: min(680px, 94vw); max-height: 92vh; overflow-y: auto;
   padding: 22px 30px 20px; text-align: center;
 }
+/* PC: 2カラム(左=プレビュー/選択一覧/決定 ・ 右=選択項目)でスクロール不要にする */
+#custom-card.two-col { width: min(940px, 96vw); max-height: 94vh; overflow: hidden; display: flex; flex-direction: column; }
+#custom-card.two-col #custom-groups { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#custom-card.two-col .custom-cols {
+  display: grid; grid-template-columns: 236px 1fr; gap: 26px; text-align: left;
+  align-items: stretch; margin-top: 6px; flex: 1 1 auto; min-height: 0;
+}
+#custom-card.two-col .custom-col-left {
+  display: flex; flex-direction: column; align-items: center; min-height: 0;
+}
+#custom-card.two-col .spec-preview { flex: 0 0 auto; }
+#custom-card.two-col .spec-summary { flex: 1 1 auto; overflow-y: auto; min-height: 0; width: 100%; }
+#custom-card.two-col .custom-col-right {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; align-content: start;
+  overflow-y: auto; min-height: 0; padding-right: 4px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+}
+#custom-card.two-col .custom-col-right::-webkit-scrollbar { width: 4px; }
+#custom-card.two-col .custom-col-right::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 2px; }
+#custom-card.two-col .custom-group { margin-bottom: 0; }
+#custom-card.two-col #custom-confirm { flex: 0 0 auto; margin-top: 14px; width: 100%; }
+/* タブレット・スマホは従来通り縦積み(スクロール可) */
+@media (max-width: 720px) {
+  #custom-card.two-col { overflow-y: auto; }
+  #custom-card.two-col .custom-cols { grid-template-columns: 1fr; gap: 16px; }
+  #custom-card.two-col .custom-col-left { position: static; }
+  #custom-card.two-col .custom-col-right { max-height: none; overflow: visible; }
+}
 .custom-title { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; color: var(--text); }
 .custom-sub { font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--gold); margin-top: 5px; margin-bottom: 14px; }
 .custom-group { margin-bottom: 13px; text-align: left; }
@@ -321,6 +383,12 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
 .custom-opt:hover { border-color: rgba(205,172,106,0.4); transform: translateY(-2px); }
 .custom-opt.sel { border-color: var(--gold); background: rgba(205,172,106,0.14); box-shadow: 0 0 20px rgba(205,172,106,0.2); }
 .custom-swatch { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.18); flex: 0 0 auto; }
+/* カテゴリ別の形状スウォッチ(針シルエット・ベゼルリング・竜頭側面): 円形にしない */
+.custom-swatch.svg {
+  width: auto; height: 34px; min-width: 46px; border-radius: 8px; border-color: transparent;
+  display: flex; align-items: center; justify-content: center;
+}
+.custom-swatch.svg svg { display: block; }
 .custom-opt .co-name { font-size: 12px; font-weight: 600; color: var(--text); }
 .custom-opt .co-en { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint); }
 #custom-confirm {
@@ -468,6 +536,19 @@ body.oiling #right-status { border-color: rgba(95,168,255,0.4); background: rgba
   80%  { opacity: 1; }
   100% { opacity: 0; transform: scale(1.012); }
 }
+/* クリックで閉じる常設メッセージ(動作確認・重要な説明) */
+@keyframes msg-appear {
+  0%   { opacity: 0; transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.msg.persistent { cursor: pointer; }
+.msg.persistent:hover { border-color: rgba(255,255,255,0.28); }
+.msg .msg-dismiss {
+  margin-top: 6px; font-family: var(--font-ui); font-size: 11px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint);
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px;
+}
+.msg.persistent:hover .msg-dismiss { color: var(--text-dim); border-color: var(--line-strong); }
 
 /* ============================================================
    シネマティック
@@ -848,8 +929,8 @@ body:not(.cinema) #shooting-star { display: none; }
    仕様を選び直す導線ボタン(第2・第3章の組立中)
    ============================================================ */
 #recustomize-btn {
-  position: fixed; top: 108px; left: 50%; transform: translateX(-50%);
-  z-index: 30; appearance: none; cursor: pointer;
+  position: fixed; top: 158px; left: 50%; transform: translateX(-50%);
+  z-index: 29; appearance: none; cursor: pointer;
   border: 1px solid rgba(205, 172, 106, 0.5);
   background: linear-gradient(180deg, rgba(205,172,106,0.18), rgba(205,172,106,0.06));
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
@@ -859,4 +940,58 @@ body:not(.cinema) #shooting-star { display: none; }
 }
 #recustomize-btn:hover { background: linear-gradient(180deg, rgba(205,172,106,0.3), rgba(205,172,106,0.12)); box-shadow: 0 0 22px rgba(205,172,106,0.24); }
 #recustomize-btn[hidden] { display: none; }
-@media (max-width: 860px) { #recustomize-btn { top: 96px; font-size: 11px; padding: 7px 14px; } }
+@media (max-width: 860px) { #recustomize-btn { top: 138px; font-size: 11px; padding: 7px 14px; } }
+
+/* ============================================================
+   トップ導線(組み立て方 / Q&A)
+   ============================================================ */
+#top-nav { display: flex; gap: 6px; margin-left: 20px; }
+#top-nav a {
+  font-size: 11.5px; letter-spacing: 0.08em; color: var(--text-dim);
+  text-decoration: none; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--line); transition: all 0.3s var(--ease); white-space: nowrap;
+}
+#top-nav a:hover { color: var(--text); border-color: var(--line-strong); background: rgba(255,255,255,0.04); }
+/* 完成演出・鑑賞中は導線を隠す */
+body.cinema #top-nav, body.completed-ui #top-nav { display: none; }
+
+/* ---- 一つ前の工程へ戻る ---- */
+#undo-btn {
+  appearance: none; cursor: pointer;
+  border: 1px solid rgba(205, 172, 106, 0.4);
+  background: rgba(205, 172, 106, 0.08);
+  color: var(--gold); font-family: var(--font-ui);
+  font-size: 12px; letter-spacing: 0.06em; padding: 8px 16px; border-radius: 999px;
+  transition: all 0.3s var(--ease);
+}
+#undo-btn:hover { background: rgba(205, 172, 106, 0.18); box-shadow: 0 0 18px rgba(205,172,106,0.2); }
+#undo-btn[hidden] { display: none; }
+/* 完成演出・鑑賞中・完成後は戻るボタンを出さない(安全) */
+body.cinema #undo-btn, body.completed-ui #undo-btn { display: none !important; }
+
+/* ============================================================
+   教育用注記(短縮版・トップ画面)
+   ============================================================ */
+#edu-note-short {
+  position: fixed; left: 22px; bottom: 168px; z-index: 18;
+  max-width: 300px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 11px 15px; border-radius: 13px;
+  background: rgba(20, 21, 26, 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(205, 172, 106, 0.22);
+  font-size: 10.5px; line-height: 1.65; color: var(--text-dim);
+}
+#edu-note-short .ens-mark {
+  font-size: 8.5px; letter-spacing: 0.22em; color: var(--gold);
+  border: 1px solid rgba(205, 172, 106, 0.4); border-radius: 5px; padding: 2px 7px;
+}
+#edu-note-short .ens-text { flex: 1 1 100%; }
+#edu-note-short .ens-more {
+  font-size: 10px; letter-spacing: 0.1em; color: var(--gold); text-decoration: none;
+  border-bottom: 1px solid rgba(205, 172, 106, 0.4); padding-bottom: 1px;
+}
+#edu-note-short .ens-more:hover { color: #e8cf95; }
+/* 完成演出・鑑賞中は注記を隠す(主役を邪魔しない) */
+body.cinema #edu-note-short, body.completed-ui #edu-note-short { display: none; }
+body.exam-ui #edu-note-short { opacity: 0.6; }
+@media (max-width: 980px) { #edu-note-short { display: none; } }

@@ -32,6 +32,7 @@
         modeBadge: $("mode-badge"),
         cta: $("cta-btn"),
         resetBtn: $("reset-btn"),
+        undoBtn: $("undo-btn"),
         btnLearning: $("btn-learning"),
         btnExam: $("btn-exam"),
         cinemaCap: $("cinema-caption"),
@@ -58,6 +59,7 @@
         rsTool: $("rs-tool"),
         rsOilRow: $("rs-oil-row"),
         customOverlay: $("custom-overlay"),
+        customCard: $("custom-card"),
         customTitle: $("custom-title"),
         customSub: $("custom-sub"),
         customGroups: $("custom-groups"),
@@ -79,6 +81,7 @@
       this.onFinalAction = null;  // (act) => void
       this.onViewAction = null;   // (act) => void  鑑賞ツールバー
       this.onCompletedAction = null; // (act) => void 完成後の組立画面
+      this.onUndo = null;         // () => void 一つ前の工程へ戻る
 
       this._bindStatic();
     }
@@ -88,6 +91,7 @@
       this.el.btnExam.addEventListener("click", () => this.onModeChange && this.onModeChange("exam"));
       this.el.cta.addEventListener("click", () => this.onCTA && this.onCTA());
       this.el.resetBtn.addEventListener("click", () => this.onReset && this.onReset());
+      if (this.el.undoBtn) this.el.undoBtn.addEventListener("click", () => this.onUndo && this.onUndo());
       // 工具のクリック選択
       Object.entries(this.el.tools).forEach(([key, el]) => {
         el.addEventListener("click", () => this.onToolSelect && this.onToolSelect(key));
@@ -277,41 +281,176 @@
        swatch が # / linear / radial で始まれば背景色、それ以外は SVG などの innerHTML。
        ------------------------------------------------------------ */
     showCustomizer(spec) {
-      const ov = this.el.customOverlay, groupsEl = this.el.customGroups;
+      const ov = this.el.customOverlay, groupsEl = this.el.customGroups, card = this.el.customCard || this.el.customGroups.parentNode;
       if (!ov) { spec.onConfirm && spec.onConfirm(spec.current || {}); return; }
       this.el.customTitle.textContent = spec.title || "仕様を選ぶ";
       this.el.customSub.textContent = spec.sub || "";
       groupsEl.innerHTML = "";
       const sel = Object.assign({}, spec.current);
+      const twoCol = !!spec.preview;
+      if (card) card.classList.toggle("two-col", twoCol);
+
+      // ---- レイアウト: PCは左=プレビュー+選択仕様+決定 / 右=選択項目(2列) ----
+      let leftCol = null, rightCol = null, groupTarget = groupsEl;
+      let previewHost = null, summaryEl = null;
+      if (twoCol) {
+        const cols = document.createElement("div");
+        cols.className = "custom-cols";
+        leftCol = document.createElement("div"); leftCol.className = "custom-col-left";
+        rightCol = document.createElement("div"); rightCol.className = "custom-col-right";
+        cols.append(leftCol, rightCol);
+
+        if (spec.lockNote) {
+          const ln = document.createElement("div");
+          ln.className = "custom-locknote";
+          ln.textContent = spec.lockNote;
+          leftCol.appendChild(ln);
+        }
+        previewHost = document.createElement("div");
+        previewHost.className = "spec-preview";
+        leftCol.appendChild(previewHost);
+        const note = document.createElement("div");
+        note.className = "sp-note"; note.textContent = "完成予想 · Preview";
+        leftCol.appendChild(note);
+        summaryEl = document.createElement("div");
+        summaryEl.className = "spec-summary";
+        leftCol.appendChild(summaryEl);
+
+        groupsEl.appendChild(cols);
+        groupTarget = rightCol;
+      } else if (spec.lockNote) {
+        const ln = document.createElement("div");
+        ln.className = "custom-locknote";
+        ln.textContent = spec.lockNote;
+        groupsEl.appendChild(ln);
+      }
+
+      /* ---- 完成予想プレビュー(選択内容をSVGで正確に反映) ---- */
+      const buildPreviewSVG = (s) => {
+        const cx = 80, cy = 78, R = 62;
+        const DIALG = { silver: ["#f4f0e7", "#d6d2c5"], slate: ["#3d434b", "#191d22"], navy: ["#2a3b60", "#101a30"] };
+        const dg = DIALG[s.dial] || DIALG.silver;
+        const light = (s.dial === "silver");
+        const ink = light ? "#3a3f47" : "#dfe4ee";
+        const idxCol = light ? "#262b33" : "#eef2fa";
+        const HANDC = { blued: "#3a5bd6", gold: "#d8b56a", rhodium: "#e4e8ee" };
+        const hc = HANDC[s.handColor] || HANDC.blued;
+        const BEZEL = { polished: { o: "#e4e8ee", i: "#8b909a" }, gold: { o: "#e2c579", i: "#9c7d3f" }, fluted: { o: "#dfe4ec", i: "#969ca6" } };
+        const bz = BEZEL[s.bezel] || BEZEL.polished;
+        const ROMAN = ["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"];
+        const ARABIC = ["12", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"];
+
+        // インデックス(12箇所それぞれ正しい位置・向き)
+        let idx = "";
+        for (let h = 0; h < 12; h++) {
+          if (h === 3) continue;               // 3時はスモールセコンド
+          const th = h * Math.PI / 6, rr = R * 0.80;
+          const x = cx + Math.sin(th) * rr, y = cy - Math.cos(th) * rr;
+          if (s.dialIndex === "roman" || s.dialIndex === "arabic") {
+            const lab = (s.dialIndex === "roman" ? ROMAN : ARABIC)[h];
+            idx += '<text x="' + x.toFixed(1) + '" y="' + (y + 3.4).toFixed(1) + '" text-anchor="middle" font-family="Times New Roman, serif" font-size="' + (s.dialIndex === "roman" ? 9 : 10) + '" fill="' + idxCol + '">' + lab + '</text>';
+          } else {
+            const isC = h % 3 === 0, len = isC ? 8.5 : 6, w = 2.4;
+            idx += '<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - len / 2).toFixed(1) + '" width="' + w + '" height="' + len + '" rx="1" fill="' + idxCol + '" transform="rotate(' + (h * 30) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
+          }
+        }
+
+        // 針(形状ごとに輪郭が違う)
+        const hand = (th, len, bw) => {
+          const dxu = Math.sin(th), dyu = -Math.cos(th), pxu = Math.cos(th), pyu = Math.sin(th);
+          const tx = cx + dxu * len, ty = cy + dyu * len;
+          if (s.handShape === "dauphine") {
+            const b1x = cx + pxu * bw, b1y = cy + pyu * bw, b2x = cx - pxu * bw, b2y = cy - pyu * bw;
+            return '<polygon points="' + b1x.toFixed(1) + ',' + b1y.toFixed(1) + ' ' + tx.toFixed(1) + ',' + ty.toFixed(1) + ' ' + b2x.toFixed(1) + ',' + b2y.toFixed(1) + '" fill="' + hc + '"/>';
+          }
+          const ra = 0.80, rx = cx + dxu * len * ra, ry = cy + dyu * len * ra;
+          return '<line x1="' + cx + '" y1="' + cy + '" x2="' + rx.toFixed(1) + '" y2="' + ry.toFixed(1) + '" stroke="' + hc + '" stroke-width="' + bw + '" stroke-linecap="round"/>' +
+            '<circle cx="' + rx.toFixed(1) + '" cy="' + ry.toFixed(1) + '" r="' + (bw * 1.7).toFixed(1) + '" fill="none" stroke="' + hc + '" stroke-width="1.4"/>' +
+            '<line x1="' + rx.toFixed(1) + '" y1="' + ry.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y2="' + ty.toFixed(1) + '" stroke="' + hc + '" stroke-width="1.3" stroke-linecap="round"/>';
+        };
+        const hourTh = 300 * Math.PI / 180, minTh = 66 * Math.PI / 180;
+
+        // ベゼル
+        let bezelSVG;
+        if (s.bezel === "fluted") {
+          bezelSVG = '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R + 4) + '" fill="none" stroke="' + bz.o + '" stroke-width="6" stroke-dasharray="2.4 2.6"/><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="' + bz.i + '" stroke-width="1.2"/>';
+        } else {
+          bezelSVG = '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R + 3) + '" fill="none" stroke="' + bz.o + '" stroke-width="6"/><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="' + bz.i + '" stroke-width="1.2"/>';
+        }
+
+        // 竜頭(横から見た形状)
+        const crownX = cx + R + 4;
+        let crownSVG;
+        if (s.crown === "cabochon") {
+          crownSVG = '<rect x="' + crownX + '" y="' + (cy - 6) + '" width="10" height="12" rx="2" fill="#aab0ba"/><circle cx="' + (crownX + 11) + '" cy="' + cy + '" r="4.6" fill="#2f50ad" stroke="#c9a85f" stroke-width="1"/><circle cx="' + (crownX + 9.4) + '" cy="' + (cy - 1.6) + '" r="1.3" fill="rgba(255,255,255,0.6)"/>';
+        } else {
+          crownSVG = '<rect x="' + crownX + '" y="' + (cy - 6) + '" width="10" height="12" rx="2" fill="#aab0ba"/><g stroke="#6c737d" stroke-width="0.9"><line x1="' + (crownX + 2.5) + '" y1="' + (cy - 5) + '" x2="' + (crownX + 2.5) + '" y2="' + (cy + 5) + '"/><line x1="' + (crownX + 5) + '" y1="' + (cy - 5) + '" x2="' + (crownX + 5) + '" y2="' + (cy + 5) + '"/><line x1="' + (crownX + 7.5) + '" y1="' + (cy - 5) + '" x2="' + (crownX + 7.5) + '" y2="' + (cy + 5) + '"/></g><circle cx="' + (crownX + 11) + '" cy="' + cy + '" r="4.1" fill="#c9a85f"/>';
+        }
+
+        // スモールセコンド(3時)
+        const ssx = cx + R * 0.44;
+        const subdial = '<circle cx="' + ssx.toFixed(1) + '" cy="' + cy + '" r="8.5" fill="none" stroke="' + ink + '" stroke-width="0.8" opacity="0.5"/><line x1="' + ssx.toFixed(1) + '" y1="' + cy + '" x2="' + ssx.toFixed(1) + '" y2="' + (cy - 6.5) + '" stroke="' + hc + '" stroke-width="1"/><circle cx="' + ssx.toFixed(1) + '" cy="' + cy + '" r="1.2" fill="' + hc + '"/>';
+
+        return '<svg width="160" height="150" viewBox="0 0 160 150">' +
+          '<defs><radialGradient id="spdg" cx="40%" cy="34%" r="72%"><stop offset="0" stop-color="' + dg[0] + '"/><stop offset="1" stop-color="' + dg[1] + '"/></radialGradient></defs>' +
+          '<line x1="' + (cx + R - 2) + '" y1="' + cy + '" x2="' + (cx + R + 6) + '" y2="' + cy + '" stroke="#8b909a" stroke-width="5"/>' +
+          crownSVG + bezelSVG +
+          '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R - 1) + '" fill="url(#spdg)"/>' +
+          idx + subdial +
+          hand(hourTh, R * 0.5, 2.7) + hand(minTh, R * 0.72, 2.0) +
+          '<circle cx="' + cx + '" cy="' + cy + '" r="3" fill="' + hc + '"/></svg>';
+      };
+
+      const updatePreview = () => {
+        if (previewHost) previewHost.innerHTML = buildPreviewSVG(sel);
+        if (summaryEl) {
+          summaryEl.innerHTML = (spec.groups || []).map((gp) => {
+            const o = gp.options.find((op) => op.value === sel[gp.key]);
+            return '<div class="ss-row"><span class="ss-k">' + gp.label + '</span><span class="ss-v">' + (o ? o.name : "—") + '</span></div>';
+          }).join("");
+        }
+      };
+
       (spec.groups || []).forEach((gp) => {
         const gEl = document.createElement("div");
-        gEl.className = "custom-group";
+        gEl.className = "custom-group" + (gp.locked ? " locked" : "");
         const h = document.createElement("h4");
-        h.innerHTML = gp.label + " <span>" + gp.en + "</span>";
+        h.innerHTML = gp.label + " <span>" + gp.en + "</span>" +
+          (gp.locked ? '<span class="lock-tag">🔒 取付済み・変更不可</span>' : "");
         gEl.appendChild(h);
         const opts = document.createElement("div");
         opts.className = "custom-opts";
         gp.options.forEach((o) => {
           const b = document.createElement("div");
-          b.className = "custom-opt" + (sel[gp.key] === o.value ? " sel" : "");
+          b.className = "custom-opt" + (sel[gp.key] === o.value ? " sel" : "") + (gp.locked ? " disabled" : "");
           const sw = document.createElement("div");
-          sw.className = "custom-swatch";
-          if (/^(#|linear|radial|repeating)/.test(o.swatch)) sw.style.background = o.swatch;
+          const isBg = /^(#|linear|radial|repeating)/.test(o.swatch);
+          sw.className = "custom-swatch" + (isBg ? "" : " svg");
+          if (isBg) sw.style.background = o.swatch;
           else sw.innerHTML = o.swatch;
           const nm = document.createElement("div"); nm.className = "co-name"; nm.textContent = o.name;
           const en = document.createElement("div"); en.className = "co-en"; en.textContent = o.en;
           b.append(sw, nm, en);
-          b.addEventListener("click", () => {
-            sel[gp.key] = o.value;
-            opts.querySelectorAll(".custom-opt").forEach((x) => x.classList.remove("sel"));
-            b.classList.add("sel");
-          });
+          if (!gp.locked) {
+            b.addEventListener("click", () => {
+              sel[gp.key] = o.value;
+              opts.querySelectorAll(".custom-opt").forEach((x) => x.classList.remove("sel"));
+              b.classList.add("sel");
+              updatePreview();
+            });
+          }
           opts.appendChild(b);
         });
         gEl.appendChild(opts);
-        groupsEl.appendChild(gEl);
+        groupTarget.appendChild(gEl);
       });
+      updatePreview();
+
+      // 決定ボタン。左カラム(プレビュー側)へ寄せ、常に見えるようにする。
+      this.el.customConfirm.textContent = spec.confirmLabel || "この仕様で仕立てる";
       this.el.customConfirm.onclick = () => { ov.hidden = true; spec.onConfirm && spec.onConfirm(sel); };
+      if (twoCol && leftCol) leftCol.appendChild(this.el.customConfirm);
+      else if (card) card.appendChild(this.el.customConfirm);
       ov.hidden = false;
     }
 
@@ -343,14 +482,20 @@
     }
     hideCTA() { this.el.cta.hidden = true; }
 
+    /** 「一つ前の工程へ戻る」ボタンの表示制御 */
+    setUndoAvailable(on) {
+      if (this.el.undoBtn) this.el.undoBtn.hidden = !on;
+    }
+
     /* ------------------------------------------------------------
        中央メッセージ
+       opts.persistent = true のときは自動消去せず、クリックで閉じる(重要な説明・動作確認結果用)。
        ------------------------------------------------------------ */
-    showMessage(text, kind = "ok", sub = "", duration = 1500) {
+    showMessage(text, kind = "ok", sub = "", duration = 1500, opts = {}) {
+      const persistent = !!opts.persistent;
       this.el.msgLayer.innerHTML = "";
       const div = document.createElement("div");
-      div.className = "msg" + (kind && kind !== "ok" ? " " + kind : "");
-      div.style.animationDuration = duration + "ms";
+      div.className = "msg" + (kind && kind !== "ok" ? " " + kind : "") + (persistent ? " persistent" : "");
       const main = document.createElement("span");
       main.className = "msg-main";
       main.textContent = text;
@@ -361,8 +506,21 @@
         s.textContent = sub;
         div.appendChild(s);
       }
+      if (persistent) {
+        // 自動消去せず、ユーザーが読んでから閉じる。背景クリックでは消えない。
+        const hint = document.createElement("span");
+        hint.className = "msg-dismiss";
+        hint.textContent = "クリックして閉じる";
+        div.appendChild(hint);
+        div.style.pointerEvents = "auto";
+        div.style.cursor = "pointer";
+        div.style.animation = "msg-appear 0.5s var(--ease) forwards";
+        div.addEventListener("click", () => { if (div.parentNode) div.remove(); });
+      } else {
+        div.style.animationDuration = duration + "ms";
+        setTimeout(() => { if (div.parentNode) div.remove(); }, duration + 60);
+      }
       this.el.msgLayer.appendChild(div);
-      setTimeout(() => { if (div.parentNode) div.remove(); }, duration + 60);
     }
 
     /* ------------------------------------------------------------

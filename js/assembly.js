@@ -10,9 +10,9 @@
   window.WatchSim = window.WatchSim || {};
 
   /* 進捗保存(バージョン付き)。旧バージョンのデータは破棄して安全に初期化する。 */
-  const STORAGE_KEY = "watchsim.cal02.v2";
-  const SAVE_VERSION = 2;
-  const MODESELECT_KEY = "watchsim.pendingModeSelect.v2";
+  const STORAGE_KEY = "watchsim.cal02.v4";
+  const SAVE_VERSION = 4;                    // v4: 仕様(custom)・specChosenを保存。構造変更のため旧データは安全に初期化。
+  const MODESELECT_KEY = "watchsim.pendingModeSelect.v4";
 
   /* アプリの明示的な状態。各状態で許可される操作を限定し、状態の混在を防ぐ。
      ASSEMBLING: 部品配置・工具操作 / OILING: 注油操作のみ /
@@ -23,6 +23,41 @@
     COMPLETED: "completed", CINEMATIC: "cinematic", VIEWING: "viewing", RESETTING: "resetting"
   };
   WatchSim.AppState = AppState;
+
+  /* 中間動作確認(工程の要所)。learning はガイド文、exam はガイドなし。
+     完全な物理シミュレーションは不要。視覚的な連動確認と完了条件があればよい。 */
+  const VERIFY = {
+    trainBridge: {
+      title: "輪列の連動確認", en: "Train Wheel Check", dur: 2.8,
+      guide: "二番車を動かすと三番車・四番車・ガンギ車が連動して回ります。輪列が正しかみ合っている証拠です。",
+      exam: "輪列が正しく連動するか確認します。",
+      gears: { centerWheel: 0.5, thirdWheel: -1.0, fourthWheel: 1.6, escapeWheel: -4.2 }
+    },
+    palletBridge: {
+      title: "アンクルの動作確認", en: "Pallet Fork Check", dur: 2.8,
+      guide: "アンクルが左右に振れ、ガンギ車を一歯ずつ解放します。脱進機が成立しているか確認します。",
+      exam: "アンクルとガンギ車の関係を確認します。",
+      pallet: true
+    },
+    balanceCock: {
+      title: "テンプの振動確認", en: "Balance Check", dur: 3.2,
+      guide: "テンプが自然に左右へ往復振動すれば正常です。これが時間の基準になります。",
+      exam: "テンプが振動するか確認します。",
+      balance: true
+    },
+    secondsHand: {
+      title: "針の干渉確認", en: "Hands Clearance Check", dur: 3.2,
+      guide: "リューズ操作を模して時針・分針を回し、針同士・文字盤との干渉がないか確認します。",
+      exam: "針の干渉がないか確認します。",
+      hands: true
+    },
+    crown: {
+      title: "巻上げ・時刻合わせの確認", en: "Winding & Setting Check", dur: 3.0,
+      guide: "竜頭を回すとゼンマイが巻き上がり、引き出して回すと針を合わせられます（本教材では簡略化）。巻真＋竜頭が一つの操作ユニットとして働きます。",
+      exam: "竜頭による巻上げ・引き出し・時刻合わせを確認します。",
+      crown: true
+    }
+  };
 
   class Assembly {
     constructor(sceneMgr, ui, data) {
@@ -52,6 +87,15 @@
       this.finalState = null;    // 完成シネマティックの状態
       this.busy = false;         // 演出中は操作を止める
       this.ctaAction = null;
+
+      /* ---- 工程履歴スタック(一つ前へ戻る用) ----
+         一工程完了ごとに1件 push し、「一つ前の工程へ戻る」で pop する。
+         placed だけに頼らず、注油・完了フラグ・中間確認結果も工程単位で管理する。 */
+      this.history = [];
+      this.undoCount = 0;        // Exam Mode: やり直し回数を記録する
+      this.pendingVerify = null; // 中間動作確認の待ち {partId, cfg}
+      this.verifyAnim = null;    // 動作確認アニメーション
+      this.specChosen = false;   // 組立前の仕様選択を済ませたか
 
       /* ---- 明示的な状態管理 ---- */
       this.appState = AppState.ASSEMBLING;
@@ -83,6 +127,7 @@
 
       this._buildTargetRing();
       this._buildOilRing();
+      this._buildAxisGuide();
 
       /* ---- 完成後の解説ON / 鑑賞演出 ---- */
       this.explainOn = false;
@@ -124,14 +169,11 @@
       this.ui.onFinalAction = (act) => this.finalAction(act);
       this.ui.onViewAction = (act) => this.viewAction(act);
       this.ui.onCompletedAction = (act) => this.completedAction(act);
+      this.ui.onUndo = () => this.undoLast();
       this.sceneMgr.onPartClick((group, point) => this.handlePartClick(group.userData.partDef.id, point));
       this.sceneMgr.onOilClick((isHit) => this.handleOilClick(isHit));
       this.sceneMgr.onHover((g, point) => this._onExplainHover(g, point));
       this.sceneMgr.onTick((dt, t) => this.update(dt, t));
-
-      // [チェック用] TOPから完成後メニューへ一発で飛ぶボタン
-      const devJump = document.getElementById("dev-jump-btn");
-      if (devJump) devJump.addEventListener("click", () => this.jumpToCompleteMenu());
 
       this.ui.setMode(this.mode);
       this._syncChapterState();
@@ -153,22 +195,32 @@
         this.ui.showModeSelect((mode) => {
           this.mode = (mode === "exam") ? "exam" : "learning";
           this.ui.setMode(this.mode);
-          this.busy = false;
-          this.appState = AppState.ASSEMBLING;
           this._save();
-          this._refresh();
-          this.ui.showMessage("Ready", "accent",
-            (this.mode === "exam" ? "Exam Mode" : "Learning Mode") + " で最初から組み立てます。", 2200);
+          // モード選択→仕様選択→組立開始
+          this._beginStart();
         });
         return;
       }
 
       if (this.completed) {
         this._enterCompletedRestore();
+      } else if (!this.specChosen && this.placed.size === 0) {
+        // 新しい開始フロー: 組立前に仕様を選ぶ
+        this._beginStart();
       } else {
         this._refresh();
         this._maybeTutorial();
       }
+    }
+
+    /* 組立前の仕様選択 → 確定したら組立開始 */
+    _beginStart() {
+      this._openStartCustomizer(() => {
+        this._refresh();
+        this._maybeTutorial();
+        this.ui.showMessage("Ready", "accent",
+          "選んだ仕様で組み立てを始めます。地板から順に配置してください。", 2600);
+      });
     }
 
     /* ---- 工具名 ---- */
@@ -254,6 +306,57 @@
       this.sceneMgr.scene.add(g);
     }
 
+    /* ============================================================
+       巻真・ツヅミ車・キチ車 の軸挿入ガイド(巻真軸=X方向)
+       円形の地面ガイドではなく、軸線・矢印・収まる位置のリングで
+       「3時側から軸に沿って横から差し込む」ことを示す。
+       ============================================================ */
+    _buildAxisGuide() {
+      const col = 0x6fb2ff;
+      const g = new THREE.Group();
+      // 巻真軸線(X方向へ伸びる細い光る棒。挿入レーンを示す)
+      const axis = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.13, 0.13, 24, 12),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false })
+      );
+      axis.rotation.z = Math.PI / 2;          // Y軸 → X軸
+      axis.position.x = 11;                   // 座から+X（挿入レーン）側へ
+      g.add(axis);
+      // 収まる位置を示す縦リング（X軸に正対）
+      const seat = new THREE.Mesh(
+        new THREE.RingGeometry(1.7, 2.15, 44),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+      );
+      seat.rotation.y = Math.PI / 2;          // 面をX軸へ
+      g.add(seat);
+      // 挿入方向の矢印（レーン上で -X へ向けて、座へ差し込む）
+      const arrow = new THREE.Mesh(
+        new THREE.ConeGeometry(0.75, 1.7, 18),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85, depthWrite: false, depthTest: false })
+      );
+      arrow.rotation.z = Math.PI / 2;         // 先端を -X へ
+      arrow.position.x = 6;
+      g.add(arrow);
+      g.renderOrder = 998;
+      g.visible = false;
+      this.axisGuide = g;
+      this.axisGuideSeat = seat;
+      this.axisGuideArrow = arrow;
+      this.sceneMgr.scene.add(g);
+    }
+
+    /** 巻真軸に沿って横から差し込む部品か(巻真・ツヅミ車・キチ車) */
+    _isAxialInsert(part) {
+      return !!part && (part.id === "stem" || part.id === "tsuzumiWheel" || part.id === "windingPinion");
+    }
+
+    _showAxisGuide(cur) {
+      if (!this.axisGuide) return;
+      this.axisGuide.position.set(cur.position[0], cur.position[1], cur.position[2]);
+      this.axisGuide.visible = true;
+    }
+    _hideAxisGuide() { if (this.axisGuide) this.axisGuide.visible = false; }
+
     /** 現在の注油点(oilPoint)。専用座標を使い、部品の hitRadius は使わない。 */
     _currentOilPoint() {
       if (!this.pendingOil) return null;
@@ -263,11 +366,18 @@
 
     _updateRingTarget() {
       // 注油中は配置リングを消す(注油ガイドは _updateOilGuide が担当)
-      if (this.pendingOil) { this.ring.visible = false; return; }
+      if (this.pendingOil) { this.ring.visible = false; this._hideAxisGuide(); return; }
       const cur = this.current;
       if (!cur || this.mode !== "learning" || this.busy || this.appState !== AppState.ASSEMBLING) {
-        this.ring.visible = false; return;
+        this.ring.visible = false; this._hideAxisGuide(); return;
       }
+      // 巻真・ツヅミ車・キチ車は円形の地面ガイドではなく軸挿入ガイドを出す
+      if (this._isAxialInsert(cur)) {
+        this.ring.visible = false;
+        this._showAxisGuide(cur);
+        return;
+      }
+      this._hideAxisGuide();
       const r = (cur.hitRadius || 5) * 1.1;
       this.ring.scale.set(r, r, 1);
       this.ring.position.set(cur.position[0], cur.position[1] + 0.6, cur.position[2]);
@@ -310,6 +420,23 @@
       this.ui.setChapter(chInfo, done, chParts.length);
       this.ui.renderTray(chParts, this.placed);
 
+      // 中間動作確認待ち: 次の部品へ進む前に「動作を確認する」を促す
+      if (this.pendingVerify) {
+        const vcfg = this.pendingVerify.cfg;
+        this.ui.setGlowCard(null);
+        this.ring.visible = false;
+        this.oilRing.visible = false;
+        if (this.mode === "learning") this.ui.showPartInfoText(vcfg.title, vcfg.en, vcfg.guide);
+        else this.ui.setToolGuide(vcfg.exam);
+        this.ui.setStepWithinChapter(null, null, null, this.total, vcfg.title);
+        this.ui.setNextStep("動作確認：" + vcfg.title, "—", false);
+        this.ui.setCTA("動作を確認する", () => this.runVerify());
+        this.ui.setUndoAvailable(this.canUndo());
+        this.ui.showRecustomize(false);
+        this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
+        return;
+      }
+
       if (cur) {
         this.ui.setStepWithinChapter(done + 1, chParts.length, cur.order, this.total);
         if (this.mode === "learning") {
@@ -340,21 +467,17 @@
       }
       this._updateRingTarget();
       this._updateOilGuide();
+      this.ui.setUndoAvailable(this.canUndo());
       this.sceneMgr.setClickTargets([...this.placed].map((id) => this.groups[id]));
-      // 文字盤を選び直す導線。ケース工程へ進む前(文字盤側の組立中)のみ表示。
+      // 仕様を確認・変更する導線。組立中(完成前)は常に開ける。取付済部品はロック表示。
       this.ui.showRecustomize(
-        !this.busy && this.appState === AppState.ASSEMBLING && this.activeChapter === "dial",
-        () => this.reopenCustomizer()
+        !this.busy && this.appState === AppState.ASSEMBLING && !this.pendingVerify && !this.pendingOil,
+        () => this._openSpecReview()
       );
     }
 
-    /** 文字盤カスタマイズを開き直す(選択状態は保持)。ケース工程に入ったら不可。 */
-    reopenCustomizer() {
-      if (this.busy) return;
-      if (this.activeChapter === "dial") {
-        this._openDialCustomizer(() => { this._refresh(); });
-      }
-    }
+    /** 後方互換: 仕様の確認・変更を開く */
+    reopenCustomizer() { this._openSpecReview(); }
 
     /* ============================================================
        解説ON: 点＋L字線＋説明ボックス(完成後の鑑賞中のみ)
@@ -558,17 +681,212 @@
       const part = this.parts.find((p) => p.id === this.pendingOil);
       this.pendingOil = null;
       this.appState = AppState.ASSEMBLING;
+      // 直前の工程履歴に注油完了を記録
+      const _rec = this.history[this.history.length - 1];
+      if (_rec && part && _rec.stepId === part.id) _rec.verificationState = "oiled";
       this.oilRing.visible = false;
       this.sceneMgr.clearOilTarget();
       document.body.classList.remove("oiling");
       this.ui.showMessage("Oiling Complete", "ok", (part ? part.name : "") + "の軸受に適量を注油しました。", 1400);
-      this._addTimer(setTimeout(() => this._refresh(), 900));
+      this._addTimer(setTimeout(() => this._maybeVerify(part), 900));
     }
 
     inspectPart(partId) {
       if (this.mode === "exam") return;
       const part = this.parts.find((p) => p.id === partId);
       if (part) this.ui.showPartInfo(part);
+    }
+
+    /* ============================================================
+       一つ前の工程へ戻る(履歴スタックを pop)
+       ・最後に完了した工程だけを戻せる(飛び越し・下層の先取りは不可)
+       ・完成後は使用不可 縡 「最初から作る」を使う
+       ============================================================ */
+    canUndo() {
+      // running(ムーブメント駆動)は第2・3章中も継続するため戻る可否の判定には使わない。
+      return (this.appState === AppState.ASSEMBLING || this.appState === AppState.OILING)
+        && !this.busy && !this.completed && this.history.length > 0;
+    }
+
+    _isFirstOfChapter(part) {
+      const chParts = this.chapterParts(part.chapter);
+      let first = chParts[0];
+      chParts.forEach((p) => { if (p.order < first.order) first = p; });
+      return first.id === part.id;
+    }
+
+    undoLast() {
+      if (!this.canUndo()) return;
+      const rec = this.history[this.history.length - 1];
+      const part = this.parts.find((p) => p.id === rec.stepId);
+      if (!part) { this.history.pop(); this._save(); this._refresh(); return; }
+
+      // 章をまたぐ戻り(前章へ) は専用処理で安全に巻き戻す
+      if (this._isFirstOfChapter(part)) { this._undoAcrossChapter(part); return; }
+
+      // 確認アラートは出さず即座に一工程戻す(短い通知のみ)
+      this.history.pop();
+      if (this.mode === "exam") this.undoCount++;
+      this.pendingVerify = null; this.verifyAnim = null;
+
+      // 注油待ちだった部品を戻す場合は注油状態も解除
+      if (this.pendingOil === part.id) {
+        this.pendingOil = null;
+        this.appState = AppState.ASSEMBLING;
+        this.oilRing.visible = false;
+        this.sceneMgr.clearOilTarget();
+        document.body.classList.remove("oiling");
+      }
+
+      this.placed.delete(part.id);
+      // ムーブメント部品を戻したら「騆動中の完成ムーブメント」ではなくなるので騆動を止める
+      if (part.chapter === "movement" && this.running) { this.running = false; this.windT = null; }
+      this.busy = true;
+      this.ring.visible = false;
+      this.ui.setUndoAvailable(false);
+
+      const g = this.groups[part.id];
+      if (g && g.parent) {
+        const from = g.position.clone();
+        const to = from.clone(); to.y += 16;   // 逆方向へ持ち上げてから取り外す
+        this.anims.push({
+          group: g, from, to, t: 0, dur: 0.45,
+          onDone: () => {
+            if (g.parent) g.parent.remove(g);
+            this.busy = false;
+            this._save();
+            this._refresh();
+            const extra = this.mode === "exam" ? "（やり直し回数 " + this.undoCount + "）" : "";
+            this.ui.showMessage("Reverted", "accent", part.name + " を取り外し、トレイへ戻しました。" + extra, 1800);
+          }
+        });
+      } else {
+        this.busy = false;
+        this._save();
+        this._refresh();
+      }
+    }
+
+    /* ============================================================
+       中間動作確認(輪列・アンクル・テンプ・針干渉)
+       ============================================================ */
+    _maybeVerify(part) {
+      const cfg = VERIFY[part.id];
+      if (cfg) {
+        this.pendingVerify = { partId: part.id, cfg };
+        this.appState = AppState.ASSEMBLING;
+      }
+      this._refresh();
+    }
+
+    runVerify() {
+      if (this.busy || !this.pendingVerify) return;
+      const cfg = this.pendingVerify.cfg;
+      this.busy = true;
+      this.ui.hideCTA();
+      this.ui.setUndoAvailable(false);
+      this.ui.showMessage(cfg.title, "accent",
+        this.mode === "learning" ? cfg.guide : cfg.exam, 2200, { persistent: true });
+      this.verifyAnim = { t: 0, dur: cfg.dur || 2.8, cfg };
+    }
+
+    _updateVerify(dt) {
+      const v = this.verifyAnim;
+      v.t += dt;
+      const k = Math.min(v.t / v.dur, 1);
+      const ramp = Math.sin(Math.min(k * 2.2, 1) * Math.PI / 2) * Math.min((1 - k) * 3, 1);
+      const c = v.cfg;
+      if (c.gears) {
+        Object.keys(c.gears).forEach((id) => {
+          const g = this.groups[id];
+          if (g && this.placed.has(id)) g.rotation.y += c.gears[id] * ramp * dt;
+        });
+      }
+      if (c.pallet) {
+        const pg = this.groups.pallet;
+        if (pg) pg.rotation.y = (pg.userData.baseRotY || 0) + Math.tanh(Math.sin(v.t * this.beatHz * Math.PI * 2) * 4) * 0.14;
+        const eg = this.groups.escapeWheel;
+        if (eg) eg.rotation.y -= 3.4 * ramp * dt;
+      }
+      if (c.balance) {
+        const bg = this.groups.balance;
+        if (bg) bg.rotation.y = (bg.userData.baseRotY || 0) + Math.sin(v.t * this.beatHz * Math.PI * 2) * 2.4;
+      }
+      if (c.hands) {
+        const hh = this.groups.hourHand, mh = this.groups.minuteHand;
+        if (hh) hh.rotation.y += 0.5 * ramp * dt;
+        if (mh) mh.rotation.y += 6.0 * ramp * dt;
+      }
+      if (c.crown) {
+        // 竜頭は巻真軸(X方向)まわりに回す。定位置のまま自転させ、位置はずらさない。
+        const cr = this.groups.crown; if (cr) cr.rotation.x += 2.4 * ramp * dt;
+        // 巻真軸上の小歯車(キチ車・ツヅミ車)も X まわり
+        ["windingPinion", "tsuzumiWheel"].forEach((id) => {
+          const g = this.groups[id]; if (g && this.placed.has(id)) g.rotation.x += 1.6 * ramp * dt;
+        });
+        // 平歯車(角穴車・丸穴車)は従来通り Y まわり
+        ["ratchetWheel", "crownWheel"].forEach((id) => {
+          const g = this.groups[id]; if (g && this.placed.has(id)) g.rotation.y += 1.6 * ramp * dt;
+        });
+      }
+      if (k >= 1) this._finishVerify();
+    }
+
+    _finishVerify() {
+      this.verifyAnim = null;
+      const rec = this.history[this.history.length - 1];
+      if (rec) rec.verificationState = "passed";
+      this.pendingVerify = null;
+      this.busy = false;
+      this._save();
+      this.ui.showMessage("Check Passed", "ok", "連動を確認しました。メッセージを閉じると次の工程へ進みます。", 1600, { persistent: true });
+      this._addTimer(setTimeout(() => this._refresh(), 400));
+    }
+
+    /* 章をまたぐ戻り: 前章へ安全に巻き戻す(反転・巻上げも復元) */
+    _undoAcrossChapter(part) {
+      const prevChapter = part.chapter === "dial" ? "movement" : part.chapter === "case" ? "dial" : null;
+      if (!prevChapter) {
+        this.ui.showMessage("最初の工程です", "accent", "地板より前の工程はありません。", 2200);
+        return;
+      }
+      const prevInfo = this.chapterInfo(prevChapter);
+      const prevName = prevInfo ? prevInfo.title.trim() : prevChapter;
+      // 章をまたぐ場合も確認アラートは出さず即座に戻す
+
+      this.history.pop();
+      if (this.mode === "exam") this.undoCount++;
+      this.pendingVerify = null; this.verifyAnim = null;
+      if (this.pendingOil === part.id) {
+        this.pendingOil = null; this.oilRing.visible = false;
+        this.sceneMgr.clearOilTarget(); document.body.classList.remove("oiling");
+      }
+      this.appState = AppState.ASSEMBLING;
+
+      // 部品を取り外す(重複生成しないよう parent から確実に除去)
+      this.placed.delete(part.id);
+      const g = this.groups[part.id];
+      if (g && g.parent) g.parent.remove(g);
+
+      const cam = this.sceneMgr;
+      if (prevChapter === "movement") {
+        this.activeChapter = "movement";
+        this.running = false; this.runT = 0; this.windT = null;
+        this.movementInner.rotation.x = 0;
+        this.movementInner.position.y = 0;
+        this.watch.rotation.x = 0;
+        cam.orbitGoal.phi = 0.6; cam.orbitGoal.theta = 0.1; cam.orbitGoal.radius = 96;
+        this.ui.showCinematic("ムーブメント側へ戻します");
+        this._addTimer(setTimeout(() => this.ui.hideCinematic(), 1500));
+      } else {
+        this.activeChapter = "dial";
+        cam.orbitGoal.radius = 96;
+      }
+      this.busy = false;
+      this._save();
+      this._refresh();
+      this.ui.showMessage("前の章へ戻りました", "accent",
+        part.name + " を取り外し、「" + prevName + "」へ戻りました。", 2600);
     }
 
     /* ============================================================
@@ -584,6 +902,12 @@
         const op = this.parts.find((p) => p.id === this.pendingOil);
         this.ui.showMessage("Oiling Required", "error",
           "先に注油を完了してください。オイラーを選び、" + (op ? op.name : "注油点") + "の青い輪をクリックします。", 2600);
+        return;
+      }
+
+      if (this.pendingVerify) {
+        this.ui.showMessage("動作確認が必要です", "error",
+          "先に「動作を確認する」を押して、動きを確認してください。", 2400);
         return;
       }
 
@@ -609,6 +933,20 @@
 
       const world = this.sceneMgr.screenToPlane(clientX, clientY, cur.position[1]);
       if (!world) return;
+
+      if (this._isAxialInsert(cur)) {
+        // 巻真軸挿入: 単純な円内ドロップではなく、「3時側の挿入レーン上・軸線に合っているか」で判定する。
+        const dz = Math.abs(world.z - cur.position[2]);          // 軸線からのずれ
+        const dxFromSeat = world.x - cur.position[0];            // >0 = 3時(+X)側
+        if (dz > 5 || dxFromSeat < -2.5 || dxFromSeat > 24) {
+          this.ui.showMessage("Insert From the Side", "error",
+            cur.name + "は上から置くのではなく、3時方向の挿入口から巻真の軸に沿って、右(3時)側からまっすぐ差し込んでください。", 3000);
+          return;
+        }
+        this._placePart(cur, world);
+        return;
+      }
+
       const dx = world.x - cur.position[0];
       const dz = world.z - cur.position[2];
       const dist = Math.hypot(dx, dz);
@@ -624,6 +962,8 @@
     }
 
     _parentFor(part) {
+      // 竜頭はケース(表面)側の部品。ムーブメント反転の影響を受けないよう watch に付ける。
+      if (part.id === "crown") return this.watch;
       return part.chapter === "movement" ? this.movementInner : this.watch;
     }
 
@@ -632,10 +972,14 @@
       const parent = this._parentFor(part);
       parent.updateMatrixWorld(true);
 
+      const isInsert = this._isAxialInsert(part);
       const worldTo = new THREE.Vector3().fromArray(part.position);
-      const worldFrom = dropWorld
-        ? new THREE.Vector3(dropWorld.x, part.position[1] + 16, dropWorld.z)
-        : worldTo.clone().setY(part.position[1] + 16);
+      // 巻真軸挿入は 3時(+X)側から水平にスライドさせて入れる(上から降ろさない)。
+      const worldFrom = isInsert
+        ? worldTo.clone().add(new THREE.Vector3(20, 0, 0))
+        : (dropWorld
+            ? new THREE.Vector3(dropWorld.x, part.position[1] + 16, dropWorld.z)
+            : worldTo.clone().setY(part.position[1] + 16));
 
       const localTo = parent.worldToLocal(worldTo.clone());
       const localFrom = parent.worldToLocal(worldFrom.clone());
@@ -644,9 +988,14 @@
       parent.add(group);
 
       this.anims.push({
-        group, from: localFrom, to: localTo, t: 0, dur: 0.55,
+        group, from: localFrom, to: localTo, t: 0, dur: isInsert ? 0.85 : 0.55,
         onDone: () => {
-          this.ui.showMessage("Assembly Complete", "ok", part.name + " — " + part.nameEn, 1000);
+          if (isInsert) {
+            this.ui.showMessage("Seated", "ok",
+              part.name + " — 軸に沿ってカチッと収まりました。", 1400);
+          } else {
+            this.ui.showMessage("Assembly Complete", "ok", part.name + " — " + part.nameEn, 1000);
+          }
           if (part.oil) {
             this.pendingOil = part.id;
             this.appState = AppState.OILING;
@@ -659,13 +1008,19 @@
               this._refresh();
             }, 1050));
           } else {
-            this._refresh();
+            this._maybeVerify(part);
           }
         }
       });
 
       this.placed.add(part.id);
       this.ui.markPlaced(part.id);
+      // 工程履歴へ push(注油待ちの場合も即座に記録。注油完了は handleOilClick で更新)
+      this.history.push({
+        stepId: part.id, chapter: part.chapter,
+        action: part.oil ? "placeAndOil" : "place",
+        partIds: [part.id], screwIds: [], oil: !!part.oil, verificationState: null
+      });
       this._save();
       this.ring.visible = false;
     }
@@ -714,6 +1069,7 @@
       if (this.busy || this.running) return;
       this.busy = true;
       this.ui.hideCTA();
+      this.ui.setUndoAvailable(false);
       this.windT = 0;
       this.rotorVel = 12;
       this.ui.showMessage("Automatic Winding", "accent", "ローターが回転しゼンマイを巻き上げます", 2000);
@@ -738,7 +1094,9 @@
       this.flipping = true;
       this.appState = AppState.CINEMATIC;
       this.ui.hideCTA();
-      this.ui.showCinematic("ムーブメントを反転 — 文字盤側へ");
+      this.ui.setUndoAvailable(false);
+      this.ui.showCinematic("ムーブメントを反転します");
+      this._flipCapSwapped = false;
 
       const cam = this.sceneMgr;
       const startTheta = cam.orbitGoal.theta;
@@ -752,6 +1110,10 @@
           this.movementInner.rotation.x = Math.PI * k;
           this.movementInner.position.y = -3 * k;
           cam.orbitGoal.theta = startTheta + Math.PI * 0.5 * k;
+          if (k > 0.5 && !this._flipCapSwapped) {
+            this._flipCapSwapped = true;
+            this.ui.showCinematic("文字盤側を上にします");
+          }
         },
         onDone: () => {
           this.movementInner.rotation.x = Math.PI;
@@ -761,12 +1123,11 @@
           this.flipping = false;
           this.activeChapter = "dial";
           this.appState = AppState.ASSEMBLING;
+          this.busy = false;
           this._save();
           this.ui.hideCinematic();
-          this._openDialCustomizer(() => {
-            this.ui.showMessage("Dial-Side Assembly", "accent", "第2章 — 文字盤側の組立を始めます", 2200);
-            this._addTimer(setTimeout(() => this._refresh(), 400));
-          });
+          this.ui.showMessage("Dial-Side Assembly", "accent", "第2章 — 文字盤側の組立を始めます", 2200);
+          this._addTimer(setTimeout(() => this._refresh(), 400));
         }
       });
     }
@@ -779,6 +1140,7 @@
       this.busy = true;
       this.appState = AppState.CINEMATIC;
       this.ui.hideCTA();
+      this.ui.setUndoAvailable(false);
       this.ui.showRecustomize(false);       // 選び直す導線を確実に閉じる
       const cam = this.sceneMgr;
       this._tween({
@@ -788,11 +1150,10 @@
           cam.orbitGoal.radius = 108;
           this.activeChapter = "case";
           this.appState = AppState.ASSEMBLING;
+          this.busy = false;
           this._save();
-          this._openCaseCustomizer(() => {
-            this.ui.showMessage("Casing", "accent", "第3章 — ケーシング(外装組立)", 2200);
-            this._addTimer(setTimeout(() => this._refresh(), 400));
-          });
+          this.ui.showMessage("Casing", "accent", "第3章 — ケーシング(外装組立)", 2200);
+          this._addTimer(setTimeout(() => this._refresh(), 400));
         }
       });
     }
@@ -860,6 +1221,7 @@
       this.watch.rotation.x = 0;
       this.ui.hideViewControls();
       this.ui.hideCompletedControls();
+      this.ui.showRecustomize(false);
       this.sceneMgr.setCinemaBackground();
       this._setFinalCamera();
       // 5 完成後メニューを再表示
@@ -1075,14 +1437,39 @@
           placedParts: [...this.placed],
           currentChapter: this.activeChapter,
           running: this.running,
-          completed: this.completed
+          completed: this.completed,
+          history: this.history,
+          undoCount: this.undoCount,
+          custom: this.custom,
+          specChosen: this.specChosen
         }));
       } catch (e) {}
     }
 
     _restore() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        let raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          // v2 → v3 移行: 進行中の組立を失わないように置き換える(履歴は空で開始)
+          const old = localStorage.getItem("watchsim.cal02.v2");
+          if (old) {
+            try {
+              const os = JSON.parse(old);
+              if (os && os.version === 2) {
+                const migrated = {
+                  version: SAVE_VERSION, mode: os.mode,
+                  placedParts: Array.isArray(os.placedParts) ? os.placedParts : [],
+                  currentChapter: os.currentChapter || "movement",
+                  running: !!os.running, completed: !!os.completed,
+                  history: [], undoCount: 0
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+                raw = JSON.stringify(migrated);
+              }
+            } catch (e) {}
+            try { localStorage.removeItem("watchsim.cal02.v2"); } catch (e) {}
+          }
+        }
         if (!raw) return;
         const s = JSON.parse(raw);
         // バージョン不一致の古いデータは破棄して安全に初期化する
@@ -1094,6 +1481,10 @@
         if (s.currentChapter) this.activeChapter = s.currentChapter;
         if (s.running) this.running = true;
         if (s.completed) this.completed = true;
+        if (Array.isArray(s.history)) this.history = s.history;
+        if (typeof s.undoCount === "number") this.undoCount = s.undoCount;
+        if (s.custom && typeof s.custom === "object") Object.assign(this.custom, s.custom);
+        if (s.specChosen) this.specChosen = true;
         this._savedPlaced = Array.isArray(s.placedParts) ? s.placedParts : [];
       } catch (e) {
         try { localStorage.removeItem(STORAGE_KEY); } catch (e2) {}
@@ -1263,6 +1654,117 @@
       });
     }
 
+    /* 仕様選択の全グループ定義(組立前選択と仕様確認の両方で共用) */
+    _specGroups() {
+      return [
+        { key: "dial", label: "文字盤の色", en: "Dial Colour", options: [
+          { value: "silver", name: "シルバー", en: "Silver Opaline", swatch: "radial-gradient(circle at 38% 32%, #f3efe6, #d6d2c5)" },
+          { value: "slate", name: "スレート", en: "Slate Grey", swatch: "radial-gradient(circle at 38% 32%, #3c424a, #1b1f25)" },
+          { value: "navy", name: "ミッドナイト", en: "Midnight Blue", swatch: "radial-gradient(circle at 38% 32%, #2c3d64, #101a30)" }
+        ] },
+        { key: "dialIndex", label: "インデックス", en: "Index Style", options: [
+          { value: "bar", name: "バー", en: "Applied Bar", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><rect x="14" y="3" width="2" height="5" fill="#cdd2da"/><rect x="14" y="22" width="2" height="5" fill="#cdd2da"/><rect x="3" y="14" width="5" height="2" fill="#cdd2da"/><rect x="22" y="14" width="5" height="2" fill="#cdd2da"/></svg>' },
+          { value: "roman", name: "ローマ数字", en: "Roman", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><text x="15" y="20" text-anchor="middle" font-family="Times New Roman, serif" font-size="11" fill="#cdd2da">XII</text></svg>' },
+          { value: "arabic", name: "アラビア数字", en: "Arabic", swatch: '<svg width="30" height="30" viewBox="0 0 30 30"><text x="15" y="21" text-anchor="middle" font-family="Times New Roman, serif" font-size="14" fill="#cdd2da">12</text></svg>' }
+        ] },
+        { key: "handColor", label: "針の仕上げ", en: "Hand Finish", options: [
+          { value: "blued", name: "ブルースチール", en: "Blued Steel", swatch: '<svg width="58" height="24" viewBox="0 0 58 24"><path d="M8 12 L44 9.4 L52 12 L44 14.6 Z" fill="#3a5bd6"/><circle cx="11" cy="12" r="4.2" fill="#3a5bd6"/></svg>' },
+          { value: "gold", name: "ゴールド", en: "Yellow Gold", swatch: '<svg width="58" height="24" viewBox="0 0 58 24"><path d="M8 12 L44 9.4 L52 12 L44 14.6 Z" fill="#d8b56a"/><circle cx="11" cy="12" r="4.2" fill="#d8b56a"/></svg>' },
+          { value: "rhodium", name: "ロジウム", en: "Rhodium", swatch: '<svg width="58" height="24" viewBox="0 0 58 24"><path d="M8 12 L44 9.4 L52 12 L44 14.6 Z" fill="#e4e8ee"/><circle cx="11" cy="12" r="4.2" fill="#e4e8ee"/></svg>' }
+        ] },
+        { key: "handShape", label: "針の形状", en: "Hand Style", options: [
+          { value: "breguet", name: "ブレゲ", en: "Breguet", swatch: '<svg width="58" height="24" viewBox="0 0 58 24"><line x1="9" y1="12" x2="39" y2="12" stroke="#d3d8e0" stroke-width="2.4" stroke-linecap="round"/><circle cx="44.5" cy="12" r="4.6" fill="none" stroke="#d3d8e0" stroke-width="1.8"/><line x1="49" y1="12" x2="53" y2="12" stroke="#d3d8e0" stroke-width="1.6" stroke-linecap="round"/></svg>' },
+          { value: "dauphine", name: "ドーフィン", en: "Dauphine", swatch: '<svg width="58" height="24" viewBox="0 0 58 24"><polygon points="9,8.6 9,15.4 53,12" fill="#d3d8e0"/><line x1="9" y1="12" x2="53" y2="12" stroke="#8b909a" stroke-width="0.8"/></svg>' }
+        ] },
+        { key: "bezel", label: "ベゼル", en: "Bezel", options: [
+          { value: "polished", name: "ポリッシュ", en: "Polished Steel", swatch: '<svg width="40" height="40" viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" fill="#191c22"/><circle cx="22" cy="22" r="19" fill="none" stroke="#dfe4ec" stroke-width="4.5"/><circle cx="22" cy="22" r="15" fill="none" stroke="#7f858f" stroke-width="1"/></svg>' },
+          { value: "gold", name: "ゴールド", en: "Yellow Gold", swatch: '<svg width="40" height="40" viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" fill="#191c22"/><circle cx="22" cy="22" r="19" fill="none" stroke="#e2c579" stroke-width="4.5"/><circle cx="22" cy="22" r="15" fill="none" stroke="#9c7d3f" stroke-width="1"/></svg>' },
+          { value: "fluted", name: "コインエッジ", en: "Fluted", swatch: '<svg width="40" height="40" viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" fill="#191c22"/><circle cx="22" cy="22" r="18" fill="none" stroke="#dfe4ec" stroke-width="5" stroke-dasharray="2.2 2.4"/><circle cx="22" cy="22" r="14.5" fill="none" stroke="#969ca6" stroke-width="1"/></svg>' }
+        ] },
+        { key: "crown", label: "竜頭", en: "Crown", options: [
+          { value: "fluted", name: "メダリオン", en: "Fluted / Medallion", swatch: '<svg width="44" height="30" viewBox="0 0 44 30"><rect x="3" y="13" width="10" height="4" rx="1" fill="#8b909a"/><rect x="13" y="6" width="16" height="18" rx="2.5" fill="#aab0ba"/><g stroke="#6c737d" stroke-width="1"><line x1="16" y1="7" x2="16" y2="23"/><line x1="19.5" y1="7" x2="19.5" y2="23"/><line x1="23" y1="7" x2="23" y2="23"/><line x1="26.5" y1="7" x2="26.5" y2="23"/></g><circle cx="34" cy="15" r="5" fill="#c9a85f"/><circle cx="34" cy="15" r="5" fill="none" stroke="#e6d29a" stroke-width="1"/></svg>' },
+          { value: "cabochon", name: "カボション", en: "Cabochon", swatch: '<svg width="44" height="30" viewBox="0 0 44 30"><rect x="3" y="13" width="10" height="4" rx="1" fill="#8b909a"/><rect x="13" y="6" width="16" height="18" rx="2.5" fill="#aab0ba"/><g stroke="#6c737d" stroke-width="1"><line x1="16" y1="7" x2="16" y2="23"/><line x1="20" y1="7" x2="20" y2="23"/><line x1="24" y1="7" x2="24" y2="23"/></g><circle cx="33.5" cy="15" r="5.6" fill="#2f50ad"/><circle cx="33.5" cy="15" r="5.6" fill="none" stroke="#c9a85f" stroke-width="1.2"/><circle cx="31.8" cy="13.3" r="1.6" fill="rgba(255,255,255,0.6)"/></svg>' }
+        ] }
+      ];
+    }
+
+    /* 仕様のロック状態を現在の配置済部品から再計算(固定値で持たない) */
+    _specLocks() {
+      return {
+        dial: this.placed.has("dial"),
+        hands: this.placed.has("hourHand") || this.placed.has("minuteHand") || this.placed.has("secondsHand"),
+        bezel: this.placed.has("bezel"),
+        crown: this.placed.has("crown")
+      };
+    }
+
+    /* 組立開始前の仕様選択(全項目＋プレビュー) */
+    _openStartCustomizer(done) {
+      this.busy = true;
+      this.appState = AppState.START;
+      this.ui.showCustomizer({
+        title: "時計の仕様を選ぶ",
+        sub: "Design Your Watch — 組立を始める前に仕様を決めます",
+        confirmLabel: "この仕様で組み立てを始める",
+        preview: true,
+        current: Object.assign({}, this.custom),
+        groups: this._specGroups(),
+        onConfirm: (sel) => {
+          Object.assign(this.custom, sel);
+          this._saveCustom();
+          ["dial", "hourHand", "minuteHand", "secondsHand", "bezel", "crown"].forEach((id) => this._rebuildPart(id));
+          this.specChosen = true;
+          this.busy = false;
+          this.appState = AppState.ASSEMBLING;
+          this._save();
+          if (done) done();
+        }
+      });
+    }
+
+    /* 組立中の仕様確認・変更(取付前の部品だけ変更可) */
+    _openSpecReview() {
+      if (this.busy || this.completed) return;
+      const locks = this._specLocks();
+      const groups = this._specGroups().map((g) => {
+        let locked = false;
+        if (g.key === "dial" || g.key === "dialIndex") locked = locks.dial;
+        else if (g.key === "handColor" || g.key === "handShape") locked = locks.hands;
+        else if (g.key === "bezel") locked = locks.bezel;
+        else if (g.key === "crown") locked = locks.crown;
+        return Object.assign({}, g, { locked });
+      });
+      this.busy = true;
+      this.ui.showCustomizer({
+        title: "仕様を確認・変更",
+        sub: "Specifications — 取付前の部品だけ変更できます",
+        confirmLabel: "変更を反映する",
+        preview: true,
+        lockNote: "取付済みの部品は変更できません（🔒）。一つ前の工程へ戻して取り外すと再び変更できます。",
+        current: Object.assign({}, this.custom),
+        groups,
+        onConfirm: (sel) => {
+          const changed = {};
+          Object.keys(sel).forEach((k) => { if (sel[k] !== this.custom[k]) changed[k] = sel[k]; });
+          Object.assign(this.custom, sel);
+          this._saveCustom();
+          const rebuild = new Set();
+          if ("dial" in changed || "dialIndex" in changed) rebuild.add("dial");
+          if ("handColor" in changed || "handShape" in changed) ["hourHand", "minuteHand", "secondsHand"].forEach((id) => rebuild.add(id));
+          if ("bezel" in changed) rebuild.add("bezel");
+          if ("crown" in changed) rebuild.add("crown");
+          // 未配置(未取付)の部品だけ安全に再生成。取付済は触らない。
+          rebuild.forEach((id) => { if (!this.placed.has(id)) this._rebuildPart(id); });
+          this.busy = false;
+          this._save();
+          this._refresh();
+          const n = [...rebuild].filter((id) => !this.placed.has(id)).length;
+          this.ui.showMessage("仕様を更新", "accent",
+            n ? "未取付の部品に反映しました。" : "取付済部品は変更されません。", 1800);
+        }
+      });
+    }
+
     /* ============================================================
        リセット系
        ============================================================ */
@@ -1275,7 +1777,8 @@
         localStorage.removeItem(MODESELECT_KEY);
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           version: SAVE_VERSION, mode: this.mode, placedParts: [],
-          currentChapter: "movement", running: false, completed: false
+          currentChapter: "movement", running: false, completed: false,
+          history: [], undoCount: 0, custom: this.custom, specChosen: false
         }));
       } catch (e) {}
       location.reload();
@@ -1332,6 +1835,12 @@
         const breathe = 1 + 0.07 * pulse;
         this.oilRing.children[0].scale.setScalar(breathe); // 外輪だけ呼吸
       }
+      // 軸挿入ガイド(巻真・ツヅミ車・キチ車)の明滅
+      if (this.axisGuide && this.axisGuide.visible) {
+        const p = 0.5 + 0.5 * Math.sin(elapsed * 3.0);
+        if (this.axisGuideSeat) this.axisGuideSeat.material.opacity = 0.4 + 0.35 * p;
+        if (this.axisGuideArrow) this.axisGuideArrow.material.opacity = 0.5 + 0.4 * p;
+      }
 
       // スナップ配置
       for (let i = this.anims.length - 1; i >= 0; i--) {
@@ -1351,6 +1860,9 @@
         tw.onUpdate && tw.onUpdate(tw.ease ? tw.ease(k) : k);
         if (k >= 1) { this.tweens.splice(i, 1); tw.onDone && tw.onDone(); }
       }
+
+      // 中間動作確認アニメーション
+      if (this.verifyAnim) this._updateVerify(dt);
 
       // 巻上げ演出
       if (this.windT !== null) {

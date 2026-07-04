@@ -586,31 +586,31 @@
       }
     },
     {
-      "id": "stem",
+      "id": "tsuzumiWheel",
       "chapter": "movement",
       "order": 13,
-      "name": "巻真",
-      "nameEn": "Winding Stem",
-      "type": "stem",
+      "name": "ツヅミ車",
+      "nameEn": "Sliding Pinion (Clutch)",
+      "type": "pinionX",
       "tool": "tweezers",
       "position": [
-        21,
+        19,
         -0.9,
         0
       ],
       "rotationY": 0,
-      "hitRadius": 6,
-      "role": "竜頭の回転を内部へ伝え、巻上と時刻合わせを切り替える軸",
-      "description": "キーレスワークの中心軸。引き出し位置により巻上げと時刻合わせを切り替えます。竜頭は最終章で先端に取り付けます。",
-      "relation": "キチ車・丸穴車を介して角穴車(巻上)へ、また日の裏へ(時刻合わせ)力を伝えます。",
-      "trivia": "巻真の角断面部が、はまった歯車を回します。",
-      "wrongReason": "巻真は3時方向のスロットに沿って入ります。他の位置ではキチ車と噛み合いません。",
+      "hitRadius": 4,
+      "role": "巻真上を滑り、巻上げと時刻合わせを切り替える鼓形の歯車",
+      "description": "巻真の角断面にはまり、竜頭の押し引きで軸方向へ滑る鼓（つづみ）形の歯車。巻上げ位置ではキチ車側、引き出し位置では日の裏側へ噛み替わり、一本の竜頭で「巻く」と「時刻を合わせる」を切り替えます。",
+      "relation": "巻真に通し、カンヌキで位置を保持されます。巻上げ時はキチ車へ、時刻合わせ時は日の裏車側へ動力を渡します。",
+      "trivia": "鼓（つづみ）に似た中央がくびれた形からこの名が付きました。キーレスワークの切り替えの要です。",
+      "wrongReason": "ツヅミ車は巻真の角断面に通す部品です。巻真の軸線から外れると滑り替えができません。",
       "run": {
         "type": "wind"
       },
       "params": {
-        "length": 13,
-        "radius": 0.7
+        "radius": 2.4,
+        "width": 2.2
       }
     },
     {
@@ -642,9 +642,70 @@
       }
     },
     {
-      "id": "crownWheel",
+      "id": "stem",
       "chapter": "movement",
       "order": 15,
+      "name": "巻真",
+      "nameEn": "Winding Stem",
+      "type": "stem",
+      "tool": "tweezers",
+      "position": [
+        21,
+        -0.9,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 6,
+      "role": "竜頭の回転を内部へ伝え、巻上と時刻合わせを切り替える軸",
+      "description": "キーレスワークの中心軸。引き出し位置により巻上げと時刻合わせを切り替えます。竜頭は最終章で先端に取り付けます。",
+      "relation": "キチ車・丸穴車を介して角穴車(巻上)へ、また日の裏へ(時刻合わせ)力を伝えます。",
+      "trivia": "巻真の角断面部が、はまった歯車を回します。",
+      "wrongReason": "巻真は3時方向のスロットに沿って入ります。他の位置ではキチ車と噛み合いません。",
+      "run": {
+        "type": "wind"
+      },
+      "params": {
+        "length": 13,
+        "radius": 0.7
+      }
+    },
+    {
+      "id": "crown",
+      "chapter": "movement",
+      "order": 16,
+      "name": "竜頭(リューズ)",
+      "nameEn": "Crown",
+      "type": "crown",
+      "tool": "tweezers",
+      "position": [
+        30.5,
+        0.5,
+        0
+      ],
+      "rotationY": 0,
+      "hitRadius": 5,
+      "role": "巻上げと時刻合わせを行うつまみ",
+      "description": "ケースの3時チューブを通し、巻真の先端にねじ込む操作部。防水パッキンを内蔵します。これで巻上げ・時刻合わせが可能になります。",
+      "relation": "ケースを貫通して巻真と結合し、外部からの操作を内部へ伝えます。",
+      "trivia": "王冠(クラウン)に形が似ることから「竜頭」。ねじ込み式は防水性を高めます。",
+      "wrongReason": "竜頭はケース3時のチューブ位置で巻真とねじ結合します。他の位置には軸がありません。",
+      "run": {
+        "type": "wind"
+      },
+      "params": {
+        "radius": 3.2,
+        "width": 2.6
+      },
+      "explainAnchor": {
+        "x": 3,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "crownWheel",
+      "chapter": "movement",
+      "order": 17,
       "name": "丸穴車",
       "nameEn": "Crown Wheel",
       "type": "ratchet",
@@ -674,7 +735,7 @@
     {
       "id": "ratchetWheel",
       "chapter": "movement",
-      "order": 16,
+      "order": 18,
       "name": "角穴車",
       "nameEn": "Ratchet Wheel",
       "type": "ratchet",
@@ -704,7 +765,7 @@
     {
       "id": "click",
       "chapter": "movement",
-      "order": 17,
+      "order": 19,
       "name": "コハゼ",
       "nameEn": "Click",
       "type": "click",
@@ -726,7 +787,7 @@
     {
       "id": "reversingWheel",
       "chapter": "movement",
-      "order": 18,
+      "order": 20,
       "name": "切換車",
       "nameEn": "Reversing Wheel",
       "type": "wheel",
@@ -759,7 +820,7 @@
     {
       "id": "reductionWheel",
       "chapter": "movement",
-      "order": 19,
+      "order": 21,
       "name": "減速車",
       "nameEn": "Reduction Wheel",
       "type": "wheel",
@@ -792,7 +853,7 @@
     {
       "id": "autoBridge",
       "chapter": "movement",
-      "order": 20,
+      "order": 22,
       "name": "自動巻ブリッジ",
       "nameEn": "Automatic Device Bridge",
       "type": "bridge",
@@ -862,7 +923,7 @@
     {
       "id": "rotor",
       "chapter": "movement",
-      "order": 21,
+      "order": 23,
       "name": "ローター(回転錘)",
       "nameEn": "Oscillating Weight",
       "type": "rotor",
@@ -895,7 +956,7 @@
     {
       "id": "cannonPinion",
       "chapter": "dial",
-      "order": 22,
+      "order": 24,
       "name": "筒カナ",
       "nameEn": "Cannon Pinion",
       "type": "cannonPinion",
@@ -922,7 +983,7 @@
     {
       "id": "minuteWheel",
       "chapter": "dial",
-      "order": 23,
+      "order": 25,
       "name": "日の裏車(分車)",
       "nameEn": "Minute Wheel",
       "type": "wheel",
@@ -956,7 +1017,7 @@
     {
       "id": "hourWheel",
       "chapter": "dial",
-      "order": 24,
+      "order": 26,
       "name": "時車",
       "nameEn": "Hour Wheel",
       "type": "hourWheel",
@@ -983,7 +1044,7 @@
     {
       "id": "dial",
       "chapter": "dial",
-      "order": 25,
+      "order": 27,
       "name": "文字盤",
       "nameEn": "Dial",
       "type": "dial",
@@ -1007,7 +1068,7 @@
     {
       "id": "hourHand",
       "chapter": "dial",
-      "order": 26,
+      "order": 28,
       "name": "短針(時針)",
       "nameEn": "Hour Hand",
       "type": "hand",
@@ -1037,7 +1098,7 @@
     {
       "id": "minuteHand",
       "chapter": "dial",
-      "order": 27,
+      "order": 29,
       "name": "長針(分針)",
       "nameEn": "Minute Hand",
       "type": "hand",
@@ -1067,7 +1128,7 @@
     {
       "id": "secondsHand",
       "chapter": "dial",
-      "order": 28,
+      "order": 30,
       "name": "秒針",
       "nameEn": "Seconds Hand",
       "type": "hand",
@@ -1097,7 +1158,7 @@
     {
       "id": "caseMiddle",
       "chapter": "case",
-      "order": 29,
+      "order": 31,
       "name": "ケースミドル",
       "nameEn": "Case Middle",
       "type": "case",
@@ -1123,7 +1184,7 @@
     {
       "id": "movementRing",
       "chapter": "case",
-      "order": 30,
+      "order": 32,
       "name": "ムーブメントリング",
       "nameEn": "Movement Ring / Spacer",
       "type": "spacer",
@@ -1148,7 +1209,7 @@
     {
       "id": "gasket",
       "chapter": "case",
-      "order": 31,
+      "order": 33,
       "name": "パッキン",
       "nameEn": "Gasket",
       "type": "gasket",
@@ -1173,7 +1234,7 @@
     {
       "id": "crystal",
       "chapter": "case",
-      "order": 32,
+      "order": 34,
       "name": "風防(サファイアガラス)",
       "nameEn": "Sapphire Crystal",
       "type": "crystal",
@@ -1202,7 +1263,7 @@
     {
       "id": "bezel",
       "chapter": "case",
-      "order": 33,
+      "order": 35,
       "name": "ベゼル",
       "nameEn": "Bezel",
       "type": "bezel",
@@ -1223,39 +1284,6 @@
         "outer": 30,
         "inner": 27,
         "height": 0.6
-      }
-    },
-    {
-      "id": "crown",
-      "chapter": "case",
-      "order": 35,
-      "name": "竜頭(リューズ)",
-      "nameEn": "Crown",
-      "type": "crown",
-      "tool": "tweezers",
-      "position": [
-        30.5,
-        0.5,
-        0
-      ],
-      "rotationY": 0,
-      "hitRadius": 5,
-      "role": "巻上げと時刻合わせを行うつまみ",
-      "description": "ケースの3時チューブを通し、巻真の先端にねじ込む操作部。防水パッキンを内蔵します。これで巻上げ・時刻合わせが可能になります。",
-      "relation": "ケースを貫通して巻真と結合し、外部からの操作を内部へ伝えます。",
-      "trivia": "王冠(クラウン)に形が似ることから「竜頭」。ねじ込み式は防水性を高めます。",
-      "wrongReason": "竜頭はケース3時のチューブ位置で巻真とねじ結合します。他の位置には軸がありません。",
-      "run": {
-        "type": "wind"
-      },
-      "params": {
-        "radius": 3.2,
-        "width": 2.6
-      },
-      "explainAnchor": {
-        "x": 3,
-        "y": 0,
-        "z": 0
       }
     }
   ]

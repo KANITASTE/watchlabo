@@ -19,7 +19,15 @@
       <div class="brand-sub">独立時計師養成システム — Cal.02 Automatic</div>
     </div>
 
+    <nav id="top-nav" aria-label="サイト内ページ">
+      <a href="guide.html">組み立て方</a>
+      <a href="qa.html">Q&amp;A</a>
+    </nav>
+
     <div class="topbar-spacer"></div>
+
+    <!-- 一つ前の工程へ戻る(組立中のみ・完成後は非表示) -->
+    <button id="undo-btn" type="button" title="直前に完了した工程を取り消します" hidden>↩ 一つ前の工程へ戻る</button>
 
     <div class="mode-toggle" role="tablist" aria-label="モード切替">
       <button id="btn-learning" class="active" type="button">Learning Mode</button>
@@ -32,10 +40,14 @@
     <button id="reset-btn" type="button" title="進捗をリセット">RESET</button>
   </header>
 
-  <!-- [チェック用] TOPから完成後メニューへ飛ぶ(どの画面でも押せるよう body 直下) -->
-  <button id="dev-jump-btn" type="button" title="[チェック用] 完成後メニューへ飛ぶ">▶ 完成メニュー</button>
-
   <div id="mode-badge">Learning Mode</div>
+
+  <!-- ============ 教育用注記(短縮版・トップ画面) ============ -->
+  <div id="edu-note-short">
+    <span class="ens-mark">教育用</span>
+    <span class="ens-text">本シミュレーションは機械式時計の基本構造を学ぶための教材です。実在するムーブメントとは、部品・機構・組立順序が異なる場合があります。</span>
+    <a class="ens-more" href="qa.html">詳しく</a>
+  </div>
 
   <!-- ============ 左パネル: 章 + サポート表示 ============ -->
   <aside id="panel-left" class="glass">
@@ -170,7 +182,7 @@
   </div>
 
   <!-- 文字盤・外装を選び直す導線(第2・第3章の組立中に表示) -->
-  <button type="button" id="recustomize-btn" hidden>仕様を選び直す</button>
+  <button type="button" id="recustomize-btn" hidden>仕様を確認・変更</button>
 
   <!-- ============ ごく稀な流れ星(完成背景・鑑賞背景の演出) ============ -->
   <div id="shooting-star"></div>
