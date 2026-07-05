@@ -180,6 +180,8 @@
       // DEV DEMO BUTTON — 公開前に削除。完成状態をワンクリックで確認する。
       const _devBtn = document.getElementById("dev-demo-btn");
       if (_devBtn) _devBtn.addEventListener("click", () => this._toggleDemo());
+      const _devDialBtn = document.getElementById("dev-dial-btn");
+      if (_devDialBtn) _devDialBtn.addEventListener("click", () => this.jumpToDial());
       this.sceneMgr.onPartClick((group, point) => this.handlePartClick(group.userData.partDef.id, point));
       this.sceneMgr.onOilClick((isHit) => this.handleOilClick(isHit));
       this.sceneMgr.onHover((g, point) => this._onExplainHover(g, point));
@@ -468,12 +470,6 @@
       const cur = this.current;
       if (!cur || this.busy || this.appState !== AppState.ASSEMBLING) {
         this.ring.visible = false; this._hideAxisGuide(); this._hideShapeGuide(); return;
-      }
-      // 日の裏車は形状に沿ったくぼみガイドを両モードで表示(受け側の形が分かるように)
-      if (cur.id === "minuteWheel") {
-        this.ring.visible = false; this._hideAxisGuide();
-        this._showShapeGuide(cur);
-        return;
       }
       this._hideShapeGuide();
       // 学習モード、またはExam ModeでHintを押したときだけガイドを出す
@@ -1340,6 +1336,31 @@
           this._addTimer(setTimeout(() => this._refresh(), 400));
         }
       });
+    }
+
+    /* ============================================================
+       [チェック用] 先頭から文字盤側組立へ一発で飛ぶ — 第1章を全配置して反転
+       ============================================================ */
+    jumpToDial() {
+      if (this.busy) return;
+      this._cancelHoverTimers && this._cancelHoverTimers();
+      // 第1章(ムーブメント)を全て即座に配置
+      this.chapterParts("movement").forEach((p) => { if (!this.placed.has(p.id)) this._placeInstant(p); });
+      // 反転後の状態を確定(アニメなし)
+      this.movementInner.rotation.x = Math.PI;
+      this.movementInner.position.y = -3;
+      this.watch.rotation.x = 0;
+      this.running = true; this.runT = 0;
+      this.flipping = false; this.busy = false;
+      this.activeChapter = "dial";
+      this.appState = AppState.ASSEMBLING;
+      const cam = this.sceneMgr;
+      cam.orbitGoal.radius = 96;
+      cam.orbitGoal.phi = 0.5;
+      this._save();
+      this.ui.hideCinematic && this.ui.hideCinematic();
+      this.ui.showMessage("Dial-Side Assembly", "accent", "チェック用: 文字盤側の組立へジャンプしました", 2000);
+      this._addTimer(setTimeout(() => this._refresh(), 300));
     }
 
     /* ============================================================

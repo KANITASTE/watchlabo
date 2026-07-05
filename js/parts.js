@@ -458,23 +458,6 @@
     shape.lineTo(slotDepthX, -slotHalf);
     shape.lineTo(slotDepthX, slotHalf);
     shape.closePath();
-    // 日の裏車(分車)の輪郭に対応した「歯車型」の受け穴を地板に開ける(単なる円ではない)。
-    // shape座標 (sx, sy)=(worldX, -局所z)。受け中心は局所(-4.5,-1.5) → shape(-4.5, 1.5)。
-    const gearOutlinePath = (cx, cy, r, teeth, depth) => {
-      const path = new THREE.Path();
-      const seg = (Math.PI * 2) / teeth, rr = r - depth;
-      let first = true;
-      for (let i = 0; i < teeth; i++) {
-        const a = i * seg;
-        [[rr, a], [rr, a + seg * 0.26], [r, a + seg * 0.40], [r, a + seg * 0.58], [rr, a + seg * 0.72]]
-          .forEach(([rad, ang]) => {
-            const x = cx + rad * Math.cos(ang), y = cy + rad * Math.sin(ang);
-            first ? (path.moveTo(x, y), first = false) : path.lineTo(x, y);
-          });
-      }
-      path.closePath();
-      return path;
-    };
 
     const body = extrudeFlat(shape, T, finishedMetal("perlage", R * 2, 0.36));
     body.position.y = -T;
@@ -517,12 +500,10 @@
     // --- 文字盤側(裏面 y=-T)の機械加工 ---
     // 反転すると見える面。座ぐり・穴石・ネジ穴・キーレス凹部を作り込む
     const backMat = metal("plate", 0.5, 0.85);
-    // 中央のモーションワーク座ぐり(段差)。日の裏車のへこみ位置には穴を開け、
-    // 一段深い受けのくぼみ(下の seatFloor/seatWall)が見えるようにする。
+    // 中央のモーションワーク座ぐり(浅い段差の無垢ディスク)。日の裏車位置には受け穴を開けない
+    // (指示: 「パーツに見えるもの」は削除)。軸受は下の bj[-4.5,-1.5] のフラット穴石のみ。
     const mwShape = new THREE.Shape();
     mwShape.absarc(0, 0, 5.0, 0, Math.PI * 2, false);
-    const mwHolePath = new THREE.Path();
-    mwHolePath.absarc(-4.5, 1.5, 3.5, 0, Math.PI * 2, true);   // 歯車型の受け穴を囲うよう開口(局所z=-1.5)
     const mwRecess = extrudeFlat(mwShape, 0.3,
       new THREE.MeshStandardMaterial({ color: 0x7f858f, roughness: 0.55, metalness: 0.85, envMapIntensity: 0.35 }));
     mwRecess.position.set(0, -T - 0.05, 0);   // 地板面と同一平面にせずZ-fightingを防ぐ(ごくわずかに手前)
@@ -539,13 +520,8 @@
       j.position.set(x, -T - 0.02, z);
       g.add(j);
     });
-    // 日の裏車(分車)がはまる円形のへこみ(座ぐり)。地板を掘り込んだ受けとして表現する。
-    // 文字盤側へ反転した時点から常に存在し、筒カナ設置前でも見える(工程途中で生成しない)。
-    // 表面より一段沈んだ暗い底 + 内壁 + 表面の縁 + 底の軸受で「歯車が乗る台」ではなく「掘られた穴」に見せる。
+    // 日の裏車(分車)の軸受は上の bj[-4.5,-1.5] のフラット穴石のみ(座ぐり・歯車型の受けは付けない)。
     const seatX = -4.5, seatZ = -1.5;
-    // 歯車型の沈んだ底(日の裏車の輪郭に対応)。地板の歯車型の穴(内壁)より一回り小さくして
-    // 壁とのZ-fightingを避ける。白い縁リングは付けない(指示: 白い輪郭線は削除)。
-    // 底の中心に軸受(ルビー穴石)= 日の裏車のホゾが入る
     // 文字盤足の穴 + ネジ穴(暗い小円)
     const holeMat = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.6, metalness: 0.3 });
     [[18, 6], [-18, -6], [6, 18], [-6, -18], [20, -3], [-20, 3]].forEach(([x, z]) => {

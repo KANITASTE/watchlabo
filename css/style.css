@@ -448,6 +448,16 @@ body.cinema #verify-layer, body.completed-ui #verify-layer { display: none; }
 #dev-demo-btn::before { content: "DEV "; color: #6f8aa2; letter-spacing: 0.16em; }
 #dev-demo-btn:hover { color: #ddeaf7; border-color: rgba(150,180,210,0.85); }
 #dev-demo-btn.demo-on { color: #ffd9a0; border-color: rgba(205,172,106,0.7); border-style: solid; }
+#dev-dial-btn {
+  position: fixed; left: 14px; bottom: 78px; z-index: 47;
+  appearance: none; cursor: pointer;
+  padding: 7px 12px; font: inherit; font-size: 12px; letter-spacing: 0.04em;
+  color: #cfe0f0; background: rgba(20,28,38,0.82);
+  border: 1px dashed rgba(150,180,210,0.6); border-radius: 8px;
+  transition: all 0.3s var(--ease);
+}
+#dev-dial-btn::before { content: "DEV "; color: #6f8aa2; letter-spacing: 0.16em; }
+#dev-dial-btn:hover { color: #ddeaf7; border-color: rgba(150,180,210,0.85); }
 
 .custom-title { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; color: var(--text); }
 .custom-sub { font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase; color: var(--gold); margin-top: 5px; margin-bottom: 14px; }
