@@ -458,10 +458,28 @@
     shape.lineTo(slotDepthX, -slotHalf);
     shape.lineTo(slotDepthX, slotHalf);
     shape.closePath();
+    // 日の裏車(分車)の輪郭に対応した「歯車型」の受け穴を地板に開ける(単なる円ではない)。
+    // shape座標 (sx, sy)=(worldX, -局所z)。受け中心は局所(-4.5,-1.5) → shape(-4.5, 1.5)。
+    const gearOutlinePath = (cx, cy, r, teeth, depth) => {
+      const path = new THREE.Path();
+      const seg = (Math.PI * 2) / teeth, rr = r - depth;
+      let first = true;
+      for (let i = 0; i < teeth; i++) {
+        const a = i * seg;
+        [[rr, a], [rr, a + seg * 0.26], [r, a + seg * 0.40], [r, a + seg * 0.58], [rr, a + seg * 0.72]]
+          .forEach(([rad, ang]) => {
+            const x = cx + rad * Math.cos(ang), y = cy + rad * Math.sin(ang);
+            first ? (path.moveTo(x, y), first = false) : path.lineTo(x, y);
+          });
+      }
+      path.closePath();
+      return path;
+    };
 
     const body = extrudeFlat(shape, T, finishedMetal("perlage", R * 2, 0.36));
     body.position.y = -T;
     g.add(body);
+    // 受け穴の機械側(movement側)のふた。反対側から見たとき深い井戸に見えないよう浅く閉じる。
 
     // 外縁の鏡面面取りリング
     const rim = new THREE.Mesh(new THREE.TorusGeometry(R - 0.35, 0.3, 12, 100), polishMat());
@@ -499,26 +517,35 @@
     // --- 文字盤側(裏面 y=-T)の機械加工 ---
     // 反転すると見える面。座ぐり・穴石・ネジ穴・キーレス凹部を作り込む
     const backMat = metal("plate", 0.5, 0.85);
-    // 中央のモーションワーク座ぐり(段差)
-    const mwRecess = new THREE.Mesh(new THREE.CylinderGeometry(5.0, 5.0, 0.35, 56),
+    // 中央のモーションワーク座ぐり(段差)。日の裏車のへこみ位置には穴を開け、
+    // 一段深い受けのくぼみ(下の seatFloor/seatWall)が見えるようにする。
+    const mwShape = new THREE.Shape();
+    mwShape.absarc(0, 0, 5.0, 0, Math.PI * 2, false);
+    const mwHolePath = new THREE.Path();
+    mwHolePath.absarc(-4.5, 1.5, 3.5, 0, Math.PI * 2, true);   // 歯車型の受け穴を囲うよう開口(局所z=-1.5)
+    const mwRecess = extrudeFlat(mwShape, 0.3,
       new THREE.MeshStandardMaterial({ color: 0x7f858f, roughness: 0.55, metalness: 0.85, envMapIntensity: 0.35 }));
-    mwRecess.position.set(0, -T + 0.1, 0);
+    mwRecess.position.set(0, -T - 0.05, 0);   // 地板面と同一平面にせずZ-fightingを防ぐ(ごくわずかに手前)
     g.add(mwRecess);
-    const mwRing = new THREE.Mesh(new THREE.TorusGeometry(5.0, 0.12, 8, 64), polishMat());
-    mwRing.rotation.x = Math.PI / 2; mwRing.position.set(0, -T + 0.28, 0);
-    g.add(mwRing);
     // キーレスワーク凹部(3時側の浅い座ぐり)
     const kw = new THREE.Mesh(new THREE.BoxGeometry(9, 0.3, 7), backMat);
     kw.position.set(15, -T + 0.1, 0);
     g.add(kw);
-    // 穴石(裏面向き): 中心・スモセコ(四番)・分車・その他
-    const bj = [[0, 0], [SMALL_SECONDS_CENTER.x, SMALL_SECONDS_CENTER.z], [8, -6], [-6, -8], [-11, 4]];
+    // 穴石(裏面向き): 中心・スモセコ(四番)・その他(日の裏車の軸受はへこみの底に別途置く)
+    const bj = [[0, 0], [SMALL_SECONDS_CENTER.x, SMALL_SECONDS_CENTER.z], [-4.5, -1.5], [-6, -8], [-11, 4]];
     bj.forEach(([x, z]) => {
       const j = makeJewel(0, 0.62);
       j.rotation.x = Math.PI;              // 裏面向き(反転後に上を向く)
       j.position.set(x, -T - 0.02, z);
       g.add(j);
     });
+    // 日の裏車(分車)がはまる円形のへこみ(座ぐり)。地板を掘り込んだ受けとして表現する。
+    // 文字盤側へ反転した時点から常に存在し、筒カナ設置前でも見える(工程途中で生成しない)。
+    // 表面より一段沈んだ暗い底 + 内壁 + 表面の縁 + 底の軸受で「歯車が乗る台」ではなく「掘られた穴」に見せる。
+    const seatX = -4.5, seatZ = -1.5;
+    // 歯車型の沈んだ底(日の裏車の輪郭に対応)。地板の歯車型の穴(内壁)より一回り小さくして
+    // 壁とのZ-fightingを避ける。白い縁リングは付けない(指示: 白い輪郭線は削除)。
+    // 底の中心に軸受(ルビー穴石)= 日の裏車のホゾが入る
     // 文字盤足の穴 + ネジ穴(暗い小円)
     const holeMat = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.6, metalness: 0.3 });
     [[18, 6], [-18, -6], [6, 18], [-6, -18], [20, -3], [-20, 3]].forEach(([x, z]) => {
@@ -588,6 +615,20 @@
       jseat.rotation.x = Math.PI;
       jseat.position.y = -0.55;
       g.add(jseat);
+    }
+
+    // モーションワークの上段カナ(日の裏車): 大歯車と同軸の小歯車を一段上に重ね、時車と噛み合わせる。
+    // 大歯車=筒カナと噛み、この上段カナ=時車と噛む二段構造にする。
+    if (p.motionPinion) {
+      const mp = p.motionPinion;
+      const pr = mp.radius || 1.7, pth = mp.thickness || 0.55, py = mp.y || 0.7;
+      // 大歯車と上段カナをつなぐ短い段(同軸であることを示す)
+      const step = new THREE.Mesh(new THREE.CylinderGeometry(pr * 0.7, r * 0.5, py, 20), metal("steel", 0.2));
+      step.position.y = th + py / 2 - 0.05;
+      g.add(step);
+      const pinion = extrudeFlat(gearShape(pr, mp.teeth || 14, Math.min(0.4, pr * 0.22), pr * 0.45), pth, metal(p.color || "steel", 0.2, 0.95));
+      pinion.position.y = th + py - 0.05;
+      g.add(pinion);
     }
     return g;
   }
@@ -1178,8 +1219,8 @@
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 4.2, 18), mat);
     tube.position.y = 2.1;
     g.add(tube);
-    // 根元の小歯車(分針を送る)
-    const gear = extrudeFlat(gearShape(1.7, 24, 0.28, 0.55), 0.55, mat);
+    // 根元の小歯車(分針を送る・日の裏車の大歯車と噛み合う)
+    const gear = extrudeFlat(gearShape(1.9, 26, 0.3, 0.55), 0.55, mat);
     g.add(gear);
     const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 0.6, 18), polishMat());
     collar.position.y = 0.9;
@@ -1325,10 +1366,12 @@
       ctx.beginPath(); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke();
     }
 
-    // ブランド表記(12時と6時の中間軸に沿って配置)
-    const drawTextAt = (worldX, worldZ, text, font, color, alpha) => {
+    // ブランド表記(12時は弧に沿い、文字盤下の表記は正位で直立させる)
+    const drawTextAt = (worldX, worldZ, text, font, color, alpha, fixedAng) => {
       const [tx, ty] = W2P(worldX, worldZ);
-      const ang = Math.atan2(tx - c, -(ty - c)); // 12時方向を上に見せる向き
+      // 既定は弧に沿う向き。fixedAng を渡すと、その回転で固定描画する
+      // (ATELIER HORLOGER と平行な水平向きへそろえるために使用)。
+      const ang = (fixedAng == null) ? Math.atan2(tx - c, -(ty - c)) : fixedAng;
       ctx.save();
       ctx.translate(tx, ty);
       ctx.rotate(ang);
@@ -1338,9 +1381,14 @@
       ctx.restore();
     };
     const dir12 = dirAt(0), dir6 = dirAt(Math.PI);
+    // ブランドロゴ「ATELIER HORLOGER」の描画角度(この座標系で正面から水平に読める向き)。
+    // 文字盤4(6時側)の表記もこの同じ角度に固定し、縦向き・上下左右反転を防ぐ。
+    const _bp = W2P(dir12[0] * rWorld * 0.42, dir12[1] * rWorld * 0.42);
+    const brandAng = Math.atan2(_bp[0] - c, -(_bp[1] - c));
     drawTextAt(dir12[0] * rWorld * 0.42, dir12[1] * rWorld * 0.42, "ATELIER  HORLOGER", "600 26px 'Times New Roman', serif", pal.brand);
-    drawTextAt(dir6[0] * rWorld * 0.5, dir6[1] * rWorld * 0.5, "Cal.02  Automatic", "500 17px 'Times New Roman', serif", pal.accent);
-    drawTextAt(dir6[0] * rWorld * 0.62, dir6[1] * rWorld * 0.62, "21'600 A/h", "400 13px 'Helvetica', sans-serif", pal.accent, 0.75);
+    // Cal.02 / 21,600 A/h をブランドロゴと平行な水平向きにそろえる(向きだけ修正・表記はCal.02で統一)。
+    drawTextAt(dir6[0] * rWorld * 0.5, dir6[1] * rWorld * 0.5, "Cal.02  Automatic", "500 17px 'Times New Roman', serif", pal.accent, null, brandAng);
+    drawTextAt(dir6[0] * rWorld * 0.62, dir6[1] * rWorld * 0.62, "21,600 A/h", "400 13px 'Helvetica', sans-serif", pal.accent, 0.75, brandAng);
     ctx.globalAlpha = 1;
 
     const tex = new THREE.CanvasTexture(cv);
@@ -1373,6 +1421,36 @@
     rim.rotation.x = Math.PI / 2;
     rim.position.y = 0.5;
     g.add(rim);
+
+    // --- 針軸が貫通する穴(#9)+ スモールセコンド秒針軸(#8) ---
+    // 文字盤(y:0〜0.5)。中心=時針車・筒カナ・分針軸の穴 / 3時=秒針軸の穴。
+    const darkHole = new THREE.MeshStandardMaterial({ color: 0x0b0d11, roughness: 0.72, metalness: 0.2, side: THREE.DoubleSide });
+    // 中央の針軸穴(過剰に大きくしない。針を付けると自然に隠れる大きさ)
+    const centerHole = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.62, 44, 1, true), darkHole);
+    centerHole.position.y = 0.25;
+    g.add(centerHole);
+    const centerRim = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.06, 8, 48), polishMat());
+    centerRim.rotation.x = Math.PI / 2; centerRim.position.y = 0.5;
+    g.add(centerRim);
+
+    // スモールセコンド中心(3時)。文字盤テクスチャの小秒針中心と厳密に一致させる。
+    const ss = WatchSim.SMALL_SECONDS_CENTER;
+    const sx = ss.x, sz = ss.z;      // 文字盤は原点[0,3.4,0]配置なので x,z はそのまま局所座標
+    // 秒針軸の穴
+    const secHole = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.6, 30, 1, true), darkHole);
+    secHole.position.set(sx, 0.25, sz);
+    g.add(secHole);
+    const secRim = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.045, 8, 32), polishMat());
+    secRim.rotation.x = Math.PI / 2; secRim.position.set(sx, 0.5, sz);
+    g.add(secRim);
+    // 中央秒針軸(四番車の延長に相当)。他の軸より細く、文字盤を貫通して先端に秒針が付く。
+    const secArbor = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.9, 16), metal("steel", 0.14, 0.95));
+    secArbor.position.set(sx, 0.7, sz);   // 局所 0.25〜1.15(ワールド 3.65〜4.55)
+    g.add(secArbor);
+    const secArborTip = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.28, 12), polishMat());
+    secArborTip.position.set(sx, 1.12, sz);
+    g.add(secArborTip);
+
     return g;
   }
 
@@ -1548,17 +1626,19 @@
       g.add(ridge);
     }
     if (cabochon) {
-      // 外側フェイスに青いカボション(合成スピネル風の丸ドーム)
+      // 外側フェイスに埋め込まれた低い半球のカボション(合成スピネル風)。
+      // 球が棒先に付いたようには見せず、端面に沿った低いドームにする。
       const stone = new THREE.Mesh(
-        new THREE.SphereGeometry(r * 0.5, 28, 20, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.SphereGeometry(r * 0.52, 28, 20, 0, Math.PI * 2, 0, Math.PI / 2),
         new THREE.MeshPhysicalMaterial({ color: 0x1f356f, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.05, reflectivity: 0.7, envMapIntensity: 0.9 })
       );
       stone.rotation.z = -Math.PI / 2;
-      stone.position.x = w / 2 + 0.05;
+      stone.scale.x = 0.5;                 // ドーム高さを抑え、低い半球にする
+      stone.position.x = w / 2 - 0.02;     // 端面へ自然に埋め込む
       g.add(stone);
-      const bezelRing = new THREE.Mesh(new THREE.TorusGeometry(r * 0.5, 0.1, 8, 36), metal("gold", 0.16, 1.0));
+      const bezelRing = new THREE.Mesh(new THREE.TorusGeometry(r * 0.52, 0.12, 8, 36), metal("gold", 0.16, 1.0));
       bezelRing.rotation.y = Math.PI / 2;
-      bezelRing.position.x = w / 2 + 0.06;
+      bezelRing.position.x = w / 2 - 0.02;
       g.add(bezelRing);
     } else {
       // 外側フェイスの金メダリオン

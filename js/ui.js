@@ -17,39 +17,48 @@
      style: "fluted"(メダリオン=溝＋端面の金装飾) / "cabochon"(青い石)
      ============================================================ */
   WatchSim.CrownArt = {
-    /** cx,cy 中心 / s 単位長(px)。接続軸は左(ケース側)、端面は右。 */
+    /** cx,cy 中心 / s 単位長(px)。斜め(約35°)から見た竜頭。
+        外側の円い端面が楕円として見え、円筒本体とケース側への接続方向も分かる。
+        style: "fluted"(端面の金メダリオン) / "cabochon"(端面に埋まった低い青の半球) */
     fragment(cx, cy, s, style) {
       const X = (x) => (cx + x * s).toFixed(2);
       const Y = (y) => (cy + y * s).toFixed(2);
       const N = (v) => (v * s).toFixed(2);
+      const Ff = [1.3, 0.35], rx = 1.05, ry = 1.7;      // 外側端面(手前)の中心と半径
+      const dx = -2.0, dy = -0.85;                       // 奥行き方向(ケース側=左奥へ)
+      const Fb = [Ff[0] + dx, Ff[1] + dy];               // 奥側端面の中心
+      const ftop = [Ff[0], Ff[1] - ry], fbot = [Ff[0], Ff[1] + ry];
+      const btop = [Fb[0], Fb[1] - ry], bbot = [Fb[0], Fb[1] + ry];
+      const P = (p) => X(p[0]) + "," + Y(p[1]);
+      const L = (t, a, b) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
       let out = "";
-      // 1) ケース側へつながる短い接続軸(左)
-      out += '<rect x="' + X(-3.4) + '" y="' + Y(-0.55) + '" width="' + N(1.9) + '" height="' + N(1.1) + '" rx="' + N(0.3) + '" fill="#7f858f"/>';
-      // 2) 円筒状の竜頭本体(角丸長方形)
-      out += '<rect x="' + X(-1.7) + '" y="' + Y(-1.7) + '" width="' + N(3.4) + '" height="' + N(3.4) + '" rx="' + N(0.7) + '" fill="#b4bac4"/>';
-      // 金属の側面ハイライト(上の明るい帯)と下の陰
-      out += '<rect x="' + X(-1.6) + '" y="' + Y(-1.5) + '" width="' + N(3.2) + '" height="' + N(0.78) + '" rx="' + N(0.4) + '" fill="rgba(255,255,255,0.42)"/>';
-      out += '<rect x="' + X(-1.6) + '" y="' + Y(0.85) + '" width="' + N(3.2) + '" height="' + N(0.7) + '" rx="' + N(0.4) + '" fill="rgba(0,0,0,0.2)"/>';
-      // 3) 側面の細かい溝(縦線・均一・ギザギザを大きくしすぎない)
-      const ridges = style === "cabochon" ? 5 : 7;
-      out += '<g stroke="#6c737d" stroke-width="' + N(0.12) + '" stroke-linecap="round">';
-      for (let i = 0; i < ridges; i++) {
-        const gx = -1.35 + (2.7 * i) / (ridges - 1);
-        out += '<line x1="' + X(gx) + '" y1="' + Y(-1.35) + '" x2="' + X(gx) + '" y2="' + Y(1.35) + '"/>';
+      // 1) ケース側への接続軸(左奥へ伸びる) — 接続方向を示す
+      out += '<line x1="' + X(Fb[0]) + '" y1="' + Y(Fb[1]) + '" x2="' + X(Fb[0] + dx * 0.9) + '" y2="' + Y(Fb[1] + dy * 0.9) + '" stroke="#7f858f" stroke-width="' + N(1.0) + '" stroke-linecap="round"/>';
+      // 2) 奥側端面(暗め・ほぼ隠れる)
+      out += '<ellipse cx="' + X(Fb[0]) + '" cy="' + Y(Fb[1]) + '" rx="' + N(rx) + '" ry="' + N(ry) + '" fill="#8b909a"/>';
+      // 3) 円筒本体(奥端面→手前端面をつなぐ帯) + 上ハイライト・下シャドウ
+      out += '<polygon points="' + P(btop) + ' ' + P(ftop) + ' ' + P(fbot) + ' ' + P(bbot) + '" fill="#b4bac4"/>';
+      out += '<polygon points="' + P(btop) + ' ' + P(ftop) + ' ' + P(L(0, [Ff[0], Ff[1] - ry * 0.5], ftop)) + ' ' + P([Fb[0], Fb[1] - ry * 0.5]) + '" fill="rgba(255,255,255,0.30)"/>';
+      out += '<polygon points="' + P([Fb[0], Fb[1] + ry * 0.5]) + ' ' + P([Ff[0], Ff[1] + ry * 0.5]) + ' ' + P(fbot) + ' ' + P(bbot) + '" fill="rgba(0,0,0,0.18)"/>';
+      // 4) 側面の溝(円周方向・数本)。奥→手前へ均等配置。
+      const ridges = style === "cabochon" ? 4 : 6;
+      out += '<g stroke="#6c737d" stroke-width="' + N(0.1) + '" stroke-linecap="round">';
+      for (let i = 1; i < ridges; i++) {
+        const t = i / ridges;
+        const tp = L(t, btop, ftop), bp = L(t, bbot, fbot);
+        out += '<line x1="' + X(tp[0]) + '" y1="' + Y(tp[1]) + '" x2="' + X(bp[0]) + '" y2="' + Y(bp[1]) + '"/>';
       }
       out += "</g>";
-      // 4) 外側端面(右)= 端の楕円。装飾は本体の中へ収める(串に刺した形にしない)。
+      // 5) 外側端面(手前・明るい金属面)
+      out += '<ellipse cx="' + X(Ff[0]) + '" cy="' + Y(Ff[1]) + '" rx="' + N(rx) + '" ry="' + N(ry) + '" fill="#cdd3db" stroke="#7f858f" stroke-width="' + N(0.08) + '"/>';
       if (style === "cabochon") {
-        // 竜頭本体の外側に小さな半球状の石(本体と自然に接続)
-        out += '<ellipse cx="' + X(1.7) + '" cy="' + Y(0) + '" rx="' + N(0.5) + '" ry="' + N(1.5) + '" fill="#9aa0aa"/>';
-        out += '<circle cx="' + X(1.86) + '" cy="' + Y(0) + '" r="' + N(0.98) + '" fill="#274a9e"/>';
-        out += '<circle cx="' + X(1.86) + '" cy="' + Y(0) + '" r="' + N(0.98) + '" fill="none" stroke="#c9a85f" stroke-width="' + N(0.16) + '"/>';
-        out += '<circle cx="' + X(1.6) + '" cy="' + Y(-0.4) + '" r="' + N(0.3) + '" fill="rgba(255,255,255,0.7)"/>';
+        // 端面に埋め込まれた低い半球のカボション + 金属枠(前へ大きく飛び出さない)
+        out += '<ellipse cx="' + X(Ff[0]) + '" cy="' + Y(Ff[1]) + '" rx="' + N(0.62) + '" ry="' + N(1.02) + '" fill="none" stroke="#c9a85f" stroke-width="' + N(0.16) + '"/>';
+        out += '<ellipse cx="' + X(Ff[0]) + '" cy="' + Y(Ff[1]) + '" rx="' + N(0.5) + '" ry="' + N(0.9) + '" fill="#274a9e"/>';
+        out += '<ellipse cx="' + X(Ff[0] - 0.12) + '" cy="' + Y(Ff[1] - 0.34) + '" rx="' + N(0.13) + '" ry="' + N(0.3) + '" fill="rgba(255,255,255,0.6)"/>';
       } else {
-        // メダリオン: 外側端面へ小さな円形装飾(本体の中へ収める)
-        out += '<ellipse cx="' + X(1.7) + '" cy="' + Y(0) + '" rx="' + N(0.5) + '" ry="' + N(1.5) + '" fill="#c6ccd4"/>';
-        out += '<circle cx="' + X(1.76) + '" cy="' + Y(0) + '" r="' + N(0.9) + '" fill="#c9a85f"/>';
-        out += '<circle cx="' + X(1.76) + '" cy="' + Y(0) + '" r="' + N(0.9) + '" fill="none" stroke="#e6d29a" stroke-width="' + N(0.14) + '"/>';
+        // メダリオン: 端面中央の金の装飾
+        out += '<ellipse cx="' + X(Ff[0]) + '" cy="' + Y(Ff[1]) + '" rx="' + N(0.55) + '" ry="' + N(0.95) + '" fill="#c9a85f" stroke="#e6d29a" stroke-width="' + N(0.1) + '"/>';
       }
       return out;
     },
@@ -90,6 +99,7 @@
         cta: $("cta-btn"),
         resetBtn: $("reset-btn"),
         undoBtn: $("undo-btn"),
+        hintBtn: $("hint-btn"),
         btnLearning: $("btn-learning"),
         btnExam: $("btn-exam"),
         cinemaCap: $("cinema-caption"),
@@ -139,6 +149,7 @@
       this.onViewAction = null;   // (act) => void  鑑賞ツールバー
       this.onCompletedAction = null; // (act) => void 完成後の組立画面
       this.onUndo = null;         // () => void 一つ前の工程へ戻る
+      this.onHint = null;         // () => void Exam Mode: 次の配置場所をヒント表示
 
       this._bindStatic();
     }
@@ -149,6 +160,7 @@
       this.el.cta.addEventListener("click", () => this.onCTA && this.onCTA());
       this.el.resetBtn.addEventListener("click", () => this.onReset && this.onReset());
       if (this.el.undoBtn) this.el.undoBtn.addEventListener("click", () => this.onUndo && this.onUndo());
+      if (this.el.hintBtn) this.el.hintBtn.addEventListener("click", () => this.onHint && this.onHint());
       // 工具のクリック選択
       Object.entries(this.el.tools).forEach(([key, el]) => {
         el.addEventListener("click", () => this.onToolSelect && this.onToolSelect(key));
@@ -343,6 +355,35 @@
       this.el.customTitle.textContent = spec.title || "仕様を選ぶ";
       this.el.customSub.textContent = spec.sub || "";
       groupsEl.innerHTML = "";
+
+      // 免責＋同意チェック(TOP画面のみ)。チェックしないと開始ボタンをdisabledにする。
+      const _oldDz = card && card.querySelector(".custom-disclaimer");
+      if (_oldDz) _oldDz.remove();
+      let ackOk = true;
+      if (spec.disclaimer && card) {
+        const dz = spec.disclaimer;
+        ackOk = !dz.requireAck || !!dz.acked;
+        const banner = document.createElement("div");
+        banner.className = "custom-disclaimer";
+        const dp = document.createElement("p");
+        dp.className = "cd-text"; dp.textContent = dz.text;
+        banner.appendChild(dp);
+        const lab = document.createElement("label");
+        lab.className = "cd-check";
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.checked = ackOk;
+        const cs = document.createElement("span");
+        cs.textContent = dz.checkLabel || "上記内容を理解しました";
+        lab.append(cb, cs);
+        banner.appendChild(lab);
+        card.insertBefore(banner, groupsEl);
+        cb.addEventListener("change", () => {
+          const on = cb.checked;
+          this.el.customConfirm.disabled = !on;
+          this.el.customConfirm.classList.toggle("disabled", !on);
+          if (on && dz.onAck) dz.onAck();
+        });
+      }
       const sel = Object.assign({}, spec.current);
       const twoCol = !!spec.preview;
       if (card) card.classList.toggle("two-col", twoCol);
@@ -542,6 +583,9 @@
         this.el.customConfirm.textContent = cLabel;
       }
       this.el.customConfirm.onclick = () => { ov.hidden = true; spec.onConfirm && spec.onConfirm(sel); };
+      // 同意チェック未完了なら開始ボタンを無効(見た目も無効状態)。disabledなボタンはonclickが発火しない。
+      this.el.customConfirm.disabled = !ackOk;
+      this.el.customConfirm.classList.toggle("disabled", !ackOk);
       if (twoCol && leftCol) leftCol.appendChild(this.el.customConfirm);
       else if (card) card.appendChild(this.el.customConfirm);
       ov.hidden = false;
@@ -644,7 +688,11 @@
       div.className = "vmsg" + (kind && kind !== "ok" ? " " + kind : "");
       const main = document.createElement("div");
       main.className = "vmsg-main";
-      main.textContent = text;
+      // 改行(\n)を<br>で明示的に反映(例:「連動を/確認しました」)
+      String(text).split("\n").forEach((ln, i) => {
+        if (i) main.appendChild(document.createElement("br"));
+        main.appendChild(document.createTextNode(ln));
+      });
       div.appendChild(main);
       if (sub) {
         const s = document.createElement("div");
@@ -658,7 +706,12 @@
         close.className = "vmsg-close";
         close.textContent = "閉じる";
         // 「閉じる」ボタンでのみ閉じる。本体・背景・hoverでは閉じず、自動でも閉じない。
-        close.addEventListener("click", (e) => { e.stopPropagation(); if (div.parentNode) div.remove(); });
+        // 閉じたときだけ onClose を呼び、次工程へ進む(二重進行しないようボタンはdivごと除去される)。
+        close.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (div.parentNode) div.remove();
+          if (opts.onClose) opts.onClose();
+        });
         div.appendChild(close);
       }
       layer.appendChild(div);

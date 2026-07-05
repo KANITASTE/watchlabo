@@ -130,6 +130,7 @@
       this._buildTargetRing();
       this._buildOilRing();
       this._buildAxisGuide();
+      this._buildShapeGuide();
 
       /* ---- 完成後の解説ON / 鑑賞演出 ---- */
       this.explainOn = false;
@@ -175,6 +176,7 @@
       this.ui.onViewAction = (act) => this.viewAction(act);
       this.ui.onCompletedAction = (act) => this.completedAction(act);
       this.ui.onUndo = () => this.undoLast();
+      this.ui.onHint = () => this.showHint();
       // DEV DEMO BUTTON — 公開前に削除。完成状態をワンクリックで確認する。
       const _devBtn = document.getElementById("dev-demo-btn");
       if (_devBtn) _devBtn.addEventListener("click", () => this._toggleDemo());
@@ -390,13 +392,93 @@
       return op && op.oilPoint ? op.oilPoint : null;
     }
 
+    /* 日の裏車など形状に沿った配置ガイド(受け側のくぼみシルエット) */
+    _buildShapeGuide() {
+      const col = 0x6fb2ff;
+      const g = new THREE.Group();
+      const recess = new THREE.Mesh(
+        new THREE.CircleGeometry(1, 40),
+        new THREE.MeshBasicMaterial({ color: 0x0a1420, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+      );
+      recess.rotation.x = -Math.PI / 2;
+      const rim = new THREE.Mesh(
+        new THREE.RingGeometry(0.86, 1.0, 48),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+      );
+      rim.rotation.x = -Math.PI / 2;
+      g.add(recess, rim);
+      const teeth = 16;
+      for (let i = 0; i < teeth; i++) {
+        const a = (i / teeth) * Math.PI * 2;
+        const tooth = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.02, 0.17),
+          new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7, depthWrite: false, depthTest: false })
+        );
+        tooth.position.set(Math.cos(a) * 1.07, 0, Math.sin(a) * 1.07);
+        tooth.rotation.y = -a;
+        g.add(tooth);
+      }
+      const hole = new THREE.Mesh(
+        new THREE.CircleGeometry(0.2, 20),
+        new THREE.MeshBasicMaterial({ color: 0x06101c, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+      );
+      hole.rotation.x = -Math.PI / 2;
+      g.add(hole);
+      g.renderOrder = 997;
+      g.visible = false;
+      this.shapeGuide = g;
+      this.shapeGuideRim = rim;
+      this.sceneMgr.scene.add(g);
+    }
+    _showShapeGuide(cur) {
+      if (!this.shapeGuide) return;
+      const rad = (cur.params && cur.params.radius) || (cur.hitRadius || 4) * 0.7;
+      this.shapeGuide.scale.set(rad, 1, rad);
+      this.shapeGuide.position.set(cur.position[0], cur.position[1] + 0.05, cur.position[2]);
+      this.shapeGuide.visible = true;
+    }
+    _hideShapeGuide() { if (this.shapeGuide) this.shapeGuide.visible = false; }
+
+    /** Exam Mode の Hint: 次に置くべき部品と配置位置を一時的に表示(Learningと同じガイド表現) */
+    showHint() {
+      if (this.busy || this.appState !== AppState.ASSEMBLING) return;
+      if (this._awaitVerifyClose || this.pendingVerify || this.pendingOil) {
+        this.ui.showMessage("ヒント", "accent", "いまは表示中の案内に従ってください。", 2200);
+        return;
+      }
+      const cur = this.current;
+      if (!cur) return;
+      this.hintCount = (this.hintCount || 0) + 1;
+      this._forceGuide = true;
+      this.ui.setGlowCard(cur.id);
+      this._updateRingTarget();
+      this.ui.showMessage("Hint", "accent",
+        "次の部品「" + cur.name + "」と配置位置を表示しています。(ヒント " + this.hintCount + "回目)", 2800);
+      if (this._hintTimer) clearTimeout(this._hintTimer);
+      this._hintTimer = this._addTimer(setTimeout(() => {
+        this._forceGuide = false;
+        if (this.mode === "exam") this.ui.setGlowCard(null);
+        this._updateRingTarget();
+      }, 4000));
+    }
+
     _updateRingTarget() {
       // 注油中は配置リングを消す(注油ガイドは _updateOilGuide が担当)
-      if (this.pendingOil) { this.ring.visible = false; this._hideAxisGuide(); return; }
+      if (this.pendingOil) { this.ring.visible = false; this._hideAxisGuide(); this._hideShapeGuide(); return; }
       const cur = this.current;
-      if (!cur || this.mode !== "learning" || this.busy || this.appState !== AppState.ASSEMBLING) {
-        this.ring.visible = false; this._hideAxisGuide(); return;
+      if (!cur || this.busy || this.appState !== AppState.ASSEMBLING) {
+        this.ring.visible = false; this._hideAxisGuide(); this._hideShapeGuide(); return;
       }
+      // 日の裏車は形状に沿ったくぼみガイドを両モードで表示(受け側の形が分かるように)
+      if (cur.id === "minuteWheel") {
+        this.ring.visible = false; this._hideAxisGuide();
+        this._showShapeGuide(cur);
+        return;
+      }
+      this._hideShapeGuide();
+      // 学習モード、またはExam ModeでHintを押したときだけガイドを出す
+      const showGuide = this.mode === "learning" || this._forceGuide;
+      if (!showGuide) { this.ring.visible = false; this._hideAxisGuide(); return; }
       // 巻真・ツヅミ車・キチ車は円形の地面ガイドではなく軸挿入ガイドを出す
       if (this._isAxialInsert(cur)) {
         this.ring.visible = false;
@@ -602,12 +684,10 @@
       if (!m) return m;
       const c = m.clone();
       if (c.emissive) {
-        // 強すぎるネオンにはせず、上品な薄い金色の発光を加える
-        c.emissive = new THREE.Color(0x3a2c14);
-        if ("emissiveIntensity" in c) c.emissiveIntensity = 0.6;
+        // すべての解説対象を同じ青色でハイライト(部品ごとに色が変わらないよう統一。質感は保つ)
+        c.emissive = new THREE.Color(0x2f6bd0);
+        if ("emissiveIntensity" in c) c.emissiveIntensity = 0.55;
       }
-      // 元の色を 10～20% 明るく(質感は保つ)
-      if (c.color) c.color.offsetHSL(0, 0, 0.06);
       c.__isHl = true;
       return c;
     }
@@ -846,6 +926,7 @@
       this.history.pop();
       if (this.mode === "exam") this.undoCount++;
       this.pendingVerify = null; this.verifyAnim = null;
+      this._awaitVerifyClose = false; this.ui.hideVerifyMessage();
 
       // 注油待ちだった部品を戻す場合は注油状態も解除
       if (this.pendingOil === part.id) {
@@ -956,9 +1037,13 @@
       if (rec) rec.verificationState = "passed";
       this.pendingVerify = null;
       this.busy = false;
+      this._awaitVerifyClose = true;   // コメントを閉じるまで次工程へ進めない
       this._save();
-      this.ui.showVerifyMessage("動作確認 OK", "連動を確認しました。次の工程へ進みます。「閉じる」で通知を消せます。", "ok");
-      this._addTimer(setTimeout(() => this._refresh(), 400));
+      // 「連動を/確認しました」を2行表示。「閉じる」を押したときだけ次工程へ進む。
+      this.ui.showVerifyMessage("連動を\n確認しました",
+        "「閉じる」を押すと次の工程へ進みます。", "ok",
+        { onClose: () => { this._awaitVerifyClose = false; this._refresh(); } });
+      // ここでは _refresh を呼ばない(閉じるまで進行しない)
     }
 
     /* 章をまたぐ戻り: 前章へ安全に巻き戻す(反転・巻上げも復元) */
@@ -975,6 +1060,7 @@
       this.history.pop();
       if (this.mode === "exam") this.undoCount++;
       this.pendingVerify = null; this.verifyAnim = null;
+      this._awaitVerifyClose = false; this.ui.hideVerifyMessage();
       if (this.pendingOil === part.id) {
         this.pendingOil = null; this.oilRing.visible = false;
         this.sceneMgr.clearOilTarget(); document.body.classList.remove("oiling");
@@ -1026,6 +1112,12 @@
       if (this.pendingVerify) {
         this.ui.showMessage("動作確認が必要です", "error",
           "先に「動作を確認する」を押して、動きを確認してください。", 2400);
+        return;
+      }
+
+      if (this._awaitVerifyClose) {
+        this.ui.showMessage("コメントを閉じてください", "error",
+          "「連動を確認しました」を『閉じる』で閉じてから、次の工程へ進めます。", 2600);
         return;
       }
 
@@ -1742,6 +1834,13 @@
     _saveCustom() {
       try { localStorage.setItem("watchsim.custom.v1", JSON.stringify(this.custom)); } catch (e) {}
     }
+    /* TOP免責の同意状態。一度同意すれば再読み込み後もチェック済みで開始できる(免責自体は毎回表示)。 */
+    _restoreAck() {
+      try { return localStorage.getItem("watchsim.ack.v1") === "1"; } catch (e) { return false; }
+    }
+    _saveAck() {
+      try { localStorage.setItem("watchsim.ack.v1", "1"); } catch (e) {}
+    }
 
     _openDialCustomizer(done) {
       this.busy = true;
@@ -1876,6 +1975,13 @@
         sub: "Design Your Watch — 組立を始める前に仕様を決めます",
         confirmLabel: "この仕様で\n組み立てを始める",
         preview: true,
+        disclaimer: {
+          text: "本シミュレーションは、機械式時計の基本構造を学ぶための教材です。実際の時計では、メーカー、キャリバー、手巻き・自動巻きなどの方式によって、部品形状、配置、機構、注油位置、工具、組立順序が異なる場合があります。本サイトの操作を、実物の時計の分解・修理手順として使用することはできません。",
+          checkLabel: "上記内容を理解しました",
+          requireAck: true,
+          acked: this._restoreAck(),
+          onAck: () => this._saveAck()
+        },
         current: Object.assign({}, this.custom),
         groups: this._specGroups(),
         blocks: this._specBlocks(),

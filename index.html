@@ -45,12 +45,7 @@
 
   <div id="mode-badge">Learning Mode</div>
 
-  <!-- ============ 教育用注記(短縮版・トップ画面) ============ -->
-  <div id="edu-note-short">
-    <span class="ens-mark">教育用</span>
-    <span class="ens-text">本シミュレーションは機械式時計の基本構造を学ぶための教材です。実在するムーブメントとは、部品・機構・組立順序が異なる場合があります。</span>
-    <a class="ens-more" href="qa.html">詳しく</a>
-  </div>
+  <!-- 教育用免責はTOP(仕様選択画面)に集約した。左下の短い注記は重複回避のため削除。 -->
 
   <!-- ============ 左パネル: 章 + サポート表示 ============ -->
   <aside id="panel-left" class="glass">
@@ -93,6 +88,7 @@
         工程・解説・発光ガイドは表示されません。<br>
         正しい部品・順序・位置を、<br>知識だけで組み立ててください。
       </p>
+      <button type="button" id="hint-btn">ヒント — 次の配置場所を表示</button>
     </div>
   </aside>
 
@@ -150,7 +146,6 @@
   <div id="cinema-caption"></div>
   <div id="calib-caption"></div>
   <div id="final-caption">
-    <div class="fc-rule"></div>
     <div class="fc-brand">ATELIER HORLOGER</div>
     <div class="fc-caliber">Cal.02 Automatic</div>
     <div class="fc-sub">Mechanical Movement · Self-Winding</div>
