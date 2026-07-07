@@ -1470,10 +1470,11 @@
       g.add(cap);
     });
 
-    // 竜頭チューブ(3時方向 = +X)
+    // 竜頭チューブ(3時方向 = +X)。竜頭の外端(x≈31.3)を越えて突き出さないよう、
+    // 内側へ寄せて竜頭の内側に隠れる長さ・位置にする。
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 4, 24), brushed);
     tube.rotation.z = Math.PI / 2;
-    tube.position.set(outer + 0.5, body.position.y + h / 2, 0);
+    tube.position.set(outer - 1.0, body.position.y + h / 2, 0);
     g.add(tube);
     return g;
   }
@@ -1617,14 +1618,14 @@
       bezelRing.position.x = w / 2 - 0.02;
       g.add(bezelRing);
     } else {
-      // 外側フェイスの金メダリオン
-      const face = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, 0.3, 36), metal("gold", 0.16, 1.0));
+      // 外側フェイスの金メダリオン(端面に沿って埋め込み、出っ張りを作らない)
+      const face = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, 0.16, 36), metal("gold", 0.16, 1.0));
       face.rotation.z = Math.PI / 2;
-      face.position.x = w / 2 + 0.1;
+      face.position.x = w / 2 - 0.08;
       g.add(face);
-      const faceRim = new THREE.Mesh(new THREE.TorusGeometry(r * 0.55, 0.08, 8, 36), polishMat());
+      const faceRim = new THREE.Mesh(new THREE.TorusGeometry(r * 0.55, 0.06, 8, 36), polishMat());
       faceRim.rotation.y = Math.PI / 2;
-      faceRim.position.x = w / 2 + 0.24;
+      faceRim.position.x = w / 2 - 0.06;
       g.add(faceRim);
     }
     return g;
